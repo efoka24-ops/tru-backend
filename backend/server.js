@@ -160,6 +160,23 @@ app.delete('/api/content/:id', (req, res) => {
   }
 });
 
+// POST Content
+app.post('/api/content', (req, res) => {
+  try {
+    const data = readData();
+    const newId = Math.max(...(data.content?.map(c => c.id) || [0]), 0) + 1;
+    const newContent = { id: newId, ...req.body };
+    data.content.push(newContent);
+    if (writeData(data)) {
+      res.status(201).json(newContent);
+    } else {
+      res.status(500).json({ error: 'Erreur d\'écriture' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Team Routes
 app.get('/api/team', (req, res) => {
   const data = readData();
@@ -239,6 +256,166 @@ app.delete('/api/team/:id', (req, res) => {
   }
 });
 
+// Solutions Routes
+app.get('/api/solutions', (req, res) => {
+  const data = readData();
+  res.json(data.solutions || []);
+});
+
+app.post('/api/solutions', (req, res) => {
+  try {
+    const data = readData();
+    if (!data.solutions) data.solutions = [];
+    
+    const newId = Math.max(...data.solutions.map(s => s.id || 0), 0) + 1;
+    const newSolution = { id: newId, ...req.body };
+    
+    data.solutions.push(newSolution);
+    
+    if (writeData(data)) {
+      console.log(`✅ Solution ${newId} créée`);
+      res.status(201).json(newSolution);
+    } else {
+      res.status(500).json({ error: 'Erreur d\'écriture' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/solutions/:id', (req, res) => {
+  try {
+    const data = readData();
+    const id = parseInt(req.params.id);
+    const index = data.solutions.findIndex(s => s.id === id);
+    
+    if (index !== -1) {
+      data.solutions[index] = { ...data.solutions[index], ...req.body, id };
+      if (writeData(data)) {
+        res.json(data.solutions[index]);
+      } else {
+        res.status(500).json({ error: 'Erreur d\'écriture' });
+      }
+    } else {
+      res.status(404).json({ error: 'Solution non trouvée' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/solutions/:id', (req, res) => {
+  try {
+    const data = readData();
+    const id = parseInt(req.params.id);
+    const index = data.solutions.findIndex(s => s.id === id);
+    
+    if (index !== -1) {
+      const deleted = data.solutions.splice(index, 1);
+      if (writeData(data)) {
+        res.json(deleted[0]);
+      } else {
+        res.status(500).json({ error: 'Erreur d\'écriture' });
+      }
+    } else {
+      res.status(404).json({ error: 'Solution non trouvée' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Testimonials Routes
+app.get('/api/testimonials', (req, res) => {
+  const data = readData();
+  res.json(data.testimonials || []);
+});
+
+app.post('/api/testimonials', (req, res) => {
+  try {
+    const data = readData();
+    if (!data.testimonials) data.testimonials = [];
+    
+    const newId = Math.max(...data.testimonials.map(t => t.id || 0), 0) + 1;
+    const newTestimonial = { id: newId, ...req.body };
+    
+    data.testimonials.push(newTestimonial);
+    
+    if (writeData(data)) {
+      console.log(`✅ Témoignage ${newId} créé`);
+      res.status(201).json(newTestimonial);
+    } else {
+      res.status(500).json({ error: 'Erreur d\'écriture' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/testimonials/:id', (req, res) => {
+  try {
+    const data = readData();
+    const id = parseInt(req.params.id);
+    const index = data.testimonials.findIndex(t => t.id === id);
+    
+    if (index !== -1) {
+      data.testimonials[index] = { ...data.testimonials[index], ...req.body, id };
+      if (writeData(data)) {
+        res.json(data.testimonials[index]);
+      } else {
+        res.status(500).json({ error: 'Erreur d\'écriture' });
+      }
+    } else {
+      res.status(404).json({ error: 'Témoignage non trouvé' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/testimonials/:id', (req, res) => {
+  try {
+    const data = readData();
+    const id = parseInt(req.params.id);
+    const index = data.testimonials.findIndex(t => t.id === id);
+    
+    if (index !== -1) {
+      const deleted = data.testimonials.splice(index, 1);
+      if (writeData(data)) {
+        res.json(deleted[0]);
+      } else {
+        res.status(500).json({ error: 'Erreur d\'écriture' });
+      }
+    } else {
+      res.status(404).json({ error: 'Témoignage non trouvé' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Settings Routes
+app.get('/api/settings', (req, res) => {
+  const data = readData();
+  res.json(data.settings || {});
+});
+
+app.put('/api/settings', (req, res) => {
+  try {
+    const data = readData();
+    data.settings = { ...data.settings, ...req.body };
+    
+    if (writeData(data)) {
+      console.log(`✅ Paramètres mis à jour`);
+      res.json(data.settings);
+    } else {
+      res.status(500).json({ error: 'Erreur d\'écriture' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Sync Route
 app.post('/api/sync', (req, res) => {
   const data = readData();
@@ -257,6 +434,8 @@ app.get('/api/sync/status', (req, res) => {
     lastSync: new Date().toISOString(),
     dataCount: {
       services: data.services.length,
+      solutions: (data.solutions || []).length,
+      testimonials: (data.testimonials || []).length,
       content: data.content.length,
       team: data.team.length
     }
