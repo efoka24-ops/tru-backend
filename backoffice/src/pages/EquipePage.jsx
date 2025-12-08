@@ -23,7 +23,7 @@ export default function EquipePage() {
   const queryClient = useQueryClient();
 
   // URLs de configuration
-  const BACKEND_API_URL = 'http://localhost:5000/api'; // Backend principal - SEULE source
+  const BACKEND_API_URL = 'https://tru-backend-five.vercel.app/api'; // Backend principal - SEULE source
 
   // Récupérer du backend principal (port 5000) - SEULE SOURCE
   const fetchBackendTeam = async () => {

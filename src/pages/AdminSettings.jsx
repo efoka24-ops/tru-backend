@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Save, Check, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const API_BASE = 'http://localhost:5000/api';
-
+//const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://tru-backend-five.vercel.app/';
 export default function AdminSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

@@ -64,7 +64,7 @@ export default function SyncViewPage() {
     queryKey: ['team', 'backend'],
     queryFn: async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/team');
+        const response = await fetch('https://tru-backend-five.vercel.app/api/team');
         if (response.ok) {
           const data = await response.json();
           console.log('✅ Backend Team (5000):', data?.length, 'membres');

@@ -2,7 +2,8 @@
 import { Plus, Edit2, Trash2, X, Check, AlertCircle, Save, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE = 'http://localhost:5000/api';
+//const API_BASE = 'http://localhost:5001/api';
+const API_BASE = 'https://tru-backend-five.vercel.app/';
 
 export default function AdminTeam() {
   // ==================== STATE ====================
