@@ -11,7 +11,8 @@ export function useSettings() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/settings');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/settings`);
       
       if (!response.ok) {
         throw new Error('Erreur récupération paramètres');
