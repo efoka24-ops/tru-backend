@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
+import { readData, writeData } from './storage.js';
 
 dotenv.config();
 
@@ -44,118 +45,6 @@ const upload = multer({
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(uploadsDir));
-
-// Utility functions
-function readData() {
-  try {
-    const data = fs.readFileSync(dataPath, 'utf8');
-    const parsed = JSON.parse(data);
-    
-    // Initialiser les sections manquantes
-    if (!parsed.team) parsed.team = [];
-    if (!parsed.services) parsed.services = [];
-    if (!parsed.solutions) parsed.solutions = [];
-    if (!parsed.contacts) parsed.contacts = [];
-    if (!parsed.testimonials) parsed.testimonials = [];
-    if (!parsed.settings) {
-      parsed.settings = {
-        id: 1,
-        siteTitle: 'Site TRU',
-        slogan: 'Transforming Reality Universally',
-        tagline: 'Innovation & Solutions',
-        email: 'contact@sitetru.com',
-        phone: '+33 (0)1 00 00 00 00',
-        address: '123 Rue de Paris, 75000 Paris',
-        socialMedia: { facebook: '', twitter: '', linkedin: '', instagram: '' },
-        businessHours: {
-          monday: '09:00 - 18:00',
-          tuesday: '09:00 - 18:00',
-          wednesday: '09:00 - 18:00',
-          thursday: '09:00 - 18:00',
-          friday: '09:00 - 18:00',
-          saturday: 'Fermé',
-          sunday: 'Fermé'
-        },
-        primaryColor: '#10b981'
-      };
-    }
-    
-    return parsed;
-  } catch (err) {
-    console.error('Erreur lecture data.json:', err);
-    return { 
-      users: [], 
-      services: [], 
-      solutions: [],
-      contacts: [],
-      testimonials: [],
-      content: [], 
-      team: [],
-      settings: {
-        id: 1,
-        siteTitle: 'Site TRU',
-        slogan: 'Transforming Reality Universally',
-        tagline: 'Innovation & Solutions',
-        email: 'contact@sitetru.com',
-        phone: '+33 (0)1 00 00 00 00',
-        address: '123 Rue de Paris, 75000 Paris',
-        socialMedia: { facebook: '', twitter: '', linkedin: '', instagram: '' },
-        businessHours: {
-          monday: '09:00 - 18:00',
-          tuesday: '09:00 - 18:00',
-          wednesday: '09:00 - 18:00',
-          thursday: '09:00 - 18:00',
-          friday: '09:00 - 18:00',
-          saturday: 'Fermé',
-          sunday: 'Fermé'
-        },
-        primaryColor: '#10b981'
-      }
-    };
-  }
-}
-
-function writeData(data) {
-  try {
-    // Assurer que les sections existent
-    if (!data.team) data.team = [];
-    if (!data.services) data.services = [];
-    if (!data.solutions) data.solutions = [];
-    if (!data.contacts) data.contacts = [];
-    if (!data.testimonials) data.testimonials = [];
-    if (!data.settings) {
-      data.settings = {
-        id: 1,
-        siteTitle: 'Site TRU',
-        slogan: 'Transforming Reality Universally',
-        tagline: 'Innovation & Solutions',
-        email: 'contact@sitetru.com',
-        phone: '+33 (0)1 00 00 00 00',
-        address: '123 Rue de Paris, 75000 Paris',
-        socialMedia: { facebook: '', twitter: '', linkedin: '', instagram: '' },
-        businessHours: {
-          monday: '09:00 - 18:00',
-          tuesday: '09:00 - 18:00',
-          wednesday: '09:00 - 18:00',
-          thursday: '09:00 - 18:00',
-          friday: '09:00 - 18:00',
-          saturday: 'Fermé',
-          sunday: 'Fermé'
-        },
-        primaryColor: '#10b981'
-      };
-    }
-    
-    console.log('📝 Écriture data.json avec:', { team: data.team.length, services: data.services.length, solutions: data.solutions.length, contacts: data.contacts.length, testimonials: data.testimonials.length });
-    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-    console.log('✅ Données écrites avec succès');
-    return true;
-  } catch (err) {
-    console.error('❌ Erreur écriture data.json:', err);
-    return false;
-  }
-}
 
 // Routes Health
 app.get('/api/health', (req, res) => {
