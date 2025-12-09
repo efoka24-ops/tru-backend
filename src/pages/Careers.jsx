@@ -35,9 +35,6 @@ export default function Careers() {
       setLoading(false);
     }
   };
-      setLoading(false);
-    }
-  };
 
   const handleApplyClick = (e, job) => {
     e.stopPropagation();
