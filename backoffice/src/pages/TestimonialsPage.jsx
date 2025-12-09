@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/api/simpleClient';
+import { uploadImage } from '@/api/uploadHelper';
 
 export default function TestimonialsPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -292,25 +293,15 @@ export default function TestimonialsPage() {
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              const formData = new FormData();
-                              formData.append('image', file);
-
                               try {
-                                const response = await fetch('http://localhost:5000/api/upload', {
-                                  method: 'POST',
-                                  body: formData
-                                });
-
-                                if (!response.ok) throw new Error('Erreur upload');
-
-                                const data = await response.json();
+                                const imageUrl = await uploadImage(file);
                                 setEditingTestimonial({
                                   ...editingTestimonial,
-                                  image: data.url
+                                  image: imageUrl
                                 });
                               } catch (error) {
-                                console.error('❌ Erreur upload:', error);
-                                alert('Erreur upload: ' + error.message);
+                                console.error('Erreur upload:', error.message);
+                                alert('Erreur lors de l\'upload: ' + error.message);
                               }
                             }
                           }}

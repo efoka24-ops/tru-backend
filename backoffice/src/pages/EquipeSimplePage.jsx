@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/api/simpleClient';
+import { uploadImage } from '@/api/uploadHelper';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function EquipeSimplePage() {
@@ -295,29 +296,15 @@ export default function EquipeSimplePage() {
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              // Upload le fichier au serveur
-                              const formData = new FormData();
-                              formData.append('image', file);
-                              
                               try {
-                                const response = await fetch('http://localhost:5000/api/upload', {
-                                  method: 'POST',
-                                  body: formData
-                                });
-                                
-                                if (!response.ok) throw new Error('Erreur upload');
-                                
-                                const data = await response.json();
-                                console.log('✅ Image uploadée:', data.url);
-                                
-                                // Stocker l'URL retournée par le serveur
+                                const imageUrl = await uploadImage(file);
                                 setEditingMember({
                                   ...editingMember,
-                                  image: data.url
+                                  image: imageUrl
                                 });
                               } catch (error) {
-                                console.error('❌ Erreur upload:', error);
-                                alert('Erreur upload: ' + error.message);
+                                console.error('Erreur upload:', error.message);
+                                alert('Erreur lors de l\'upload: ' + error.message);
                               }
                             }
                           }}
