@@ -661,6 +661,58 @@ app.delete('/api/contacts/:id', (req, res) => {
   }
 });
 
+// CONTACT REPLY ROUTE
+app.post('/api/contacts/reply', (req, res) => {
+  try {
+    const { contactId, method, message } = req.body;
+    
+    if (!contactId || !method || !message) {
+      return res.status(400).json({ error: 'Données manquantes' });
+    }
+
+    const data = readData();
+    const contact = data.contacts?.find(c => c.id === parseInt(contactId));
+    
+    if (!contact) {
+      return res.status(404).json({ error: 'Contact non trouvé' });
+    }
+
+    // Log la réponse
+    console.log(`📧 Réponse par ${method} à ${contact.email || contact.fullName}:`);
+    console.log(`Message: ${message}`);
+
+    // Mettre à jour le statut du contact
+    const contactIndex = data.contacts.findIndex(c => c.id === parseInt(contactId));
+    if (contactIndex !== -1) {
+      data.contacts[contactIndex].status = 'replied';
+      data.contacts[contactIndex].replyDate = new Date().toISOString();
+      data.contacts[contactIndex].replyMethod = method;
+      data.contacts[contactIndex].replyMessage = message;
+      writeData(data);
+    }
+
+    // Simuler l'envoi (dans une vraie app, on utiliserait Nodemailer ou Twilio)
+    if (method === 'email') {
+      console.log(`✉️  Email envoyé à ${contact.email}`);
+      res.json({ 
+        success: true, 
+        message: `Email envoyé à ${contact.email}`,
+        method: 'email'
+      });
+    } else if (method === 'sms') {
+      console.log(`💬 SMS envoyé à ${contact.phone}`);
+      res.json({ 
+        success: true, 
+        message: `SMS envoyé à ${contact.phone}`,
+        method: 'sms'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erreur envoi réponse:', error);
+    res.status(500).json({ error: error.message || 'Erreur envoi réponse' });
+  }
+});
+
 // TESTIMONIALS ROUTES
 app.get('/api/testimonials', (req, res) => {
   try {
