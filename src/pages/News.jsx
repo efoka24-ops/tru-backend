@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, ArrowRight, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { apiService } from '../api/apiService';
 
 export default function News() {
   const [news, setNews] = useState([]);
@@ -16,13 +17,11 @@ export default function News() {
 
   const fetchNews = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/news');
-      if (!response.ok) throw new Error('Erreur chargement actualités');
-      const data = await response.json();
+      const data = await apiService.getNews();
       setNews(data || []);
+      setLoading(false);
     } catch (error) {
       console.error('❌ Erreur:', error);
-    } finally {
       setLoading(false);
     }
   };

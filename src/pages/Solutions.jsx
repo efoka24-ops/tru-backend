@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CheckCircle2, Target, Lightbulb, X, Clock, Users, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { apiService } from '../api/apiService';
 
 export default function Solutions() {
   const navigate = useNavigate();
@@ -13,9 +14,7 @@ export default function Solutions() {
     const fetchSolutions = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/solutions');
-        if (!response.ok) throw new Error('Erreur chargement solutions');
-        const data = await response.json();
+        const data = await apiService.getSolutions();
         setSolutions(data || []);
       } catch (err) {
         console.error('❌ Erreur:', err);

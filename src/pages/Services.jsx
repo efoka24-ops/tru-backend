@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CheckCircle2, Zap, Building2, X, Clock, Users, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { apiService } from '../api/apiService';
 
 export default function Services() {
   const navigate = useNavigate();
@@ -13,9 +14,7 @@ export default function Services() {
     const fetchServices = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/services');
-        if (!response.ok) throw new Error('Erreur chargement services');
-        const data = await response.json();
+        const data = await apiService.getServices();
         setServices(data || []);
       } catch (err) {
         console.error('❌ Erreur:', err);

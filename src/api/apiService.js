@@ -63,5 +63,18 @@ export const apiService = {
       console.error('Erreur santé serveur:', error);
       return null;
     }
+  },
+
+  // Helper to get full image URL
+  getImageUrl(imagePath) {
+    if (!imagePath) return null;
+    // If it's already a full URL (starts with http or is base64 data URL)
+    if (imagePath.startsWith('http') || imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    // If it's a relative path, prepend the API base URL
+    const baseUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
+    return `${baseUrl}${imagePath}`;
   }
 };
+

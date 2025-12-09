@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { apiService } from '../api/apiService';
 
 export default function TestimonialsCarousel() {
   const [testimonials, setTestimonials] = useState([]);
@@ -13,15 +14,9 @@ export default function TestimonialsCarousel() {
   useEffect(() => {
     const fetchTestimonials = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/testimonials');
-        const data = await response.json();
+        const data = await apiService.getTestimonials();
         if (Array.isArray(data)) {
-          // Construire les URLs complètes pour les images
-          const testimonialsWithFullUrls = data.map(t => ({
-            ...t,
-            image: t.image ? (t.image.startsWith('http') ? t.image : `http://localhost:5000${t.image}`) : null
-          }));
-          setTestimonials(testimonialsWithFullUrls);
+          setTestimonials(data);
           setIsLoading(false);
         }
       } catch (error) {

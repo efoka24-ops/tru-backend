@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Briefcase, MapPin, Clock, ArrowRight, Heart, X, Check } from 'lucide-react';
+import { apiService } from '../api/apiService';
 
 export default function Careers() {
   const [jobs, setJobs] = useState([]);
@@ -26,13 +27,14 @@ export default function Careers() {
 
   const fetchJobs = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/jobs');
-      if (!response.ok) throw new Error('Erreur chargement offres');
-      const data = await response.json();
+      const data = await apiService.getJobs();
       setJobs(data || []);
+      setLoading(false);
     } catch (error) {
       console.error('❌ Erreur:', error);
-    } finally {
+      setLoading(false);
+    }
+  };
       setLoading(false);
     }
   };

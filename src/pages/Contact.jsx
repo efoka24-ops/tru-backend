@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Send, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAppSettings } from '../context/SettingsContext';
+import { apiService } from '../api/apiService';
 
 export default function Contact() {
   const { settings, loading: settingsLoading } = useAppSettings();
@@ -53,17 +54,7 @@ export default function Contact() {
     setSubmitStatus(null);
 
     try {
-      const response = await fetch('http://localhost:5000/api/contacts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur d\'envoi du message');
-      }
-
-      const data = await response.json();
+      const data = await apiService.sendContact(formData);
       
       setSubmitStatus('success');
       setFormData({
