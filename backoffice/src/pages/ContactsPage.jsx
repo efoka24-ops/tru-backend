@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Trash2, AlertCircle, Mail, MessageSquare, Eye, Send, X } from 'lucide-react';
+import emailjs from '@emailjs/browser';
+
+// Initialiser EmailJS avec ta clé publique
+emailjs.init('qkNcx5-8mPFa4DtMh');
 
 export default function ContactsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -58,44 +62,63 @@ export default function ContactsPage() {
     }
   });
 
-  const replyMutation = useMutation({
-    mutationFn: async (data) => {
-      const response = await fetch('http://localhost:5000/api/contacts/reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Erreur envoi réponse');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      setViewingContact(null);
-      setReplyMethod(null);
-      setReplyText('');
-      showNotification('✅ Réponse envoyée avec succès!');
-    },
-    onError: (error) => {
-      showNotification('❌ Erreur: ' + error.message, 'error');
-    }
-  });
-
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleReply = () => {
+  const handleReply = async () => {
     if (!replyText.trim()) {
       showNotification('❌ Veuillez écrire une réponse', 'error');
       return;
     }
 
-    replyMutation.mutate({
-      contactId: viewingContact.id,
-      method: replyMethod,
-      message: replyText
-    });
+    try {
+      // Envoyer l'email au client via EmailJS
+      if (replyMethod === 'email') {
+        await emailjs.send('service_a59rkt1', 'template_contact_reply', {
+          to_email: viewingContact.email,
+          to_name: viewingContact.fullName,
+          subject: `Réponse à votre demande: ${viewingContact.subject}`,
+          message: replyText,
+          from_name: 'TRU GROUP'
+        });
+
+        // Envoyer une copie à l'admin
+        await emailjs.send('service_a59rkt1', 'template_contact_reply', {
+          to_email: 'efoka24@gmail.com',
+          to_name: 'Admin TRU GROUP',
+          subject: `Réponse envoyée à ${viewingContact.fullName}`,
+          message: `Vous avez envoyé une réponse à ${viewingContact.fullName} (${viewingContact.email})\n\nRéponse:\n${replyText}`,
+          from_name: 'TRU GROUP Notification'
+        });
+
+        console.log('✅ Email envoyé avec succès via EmailJS');
+      }
+
+      // Sauvegarder la réponse dans la base de données
+      const response = await fetch('http://localhost:5000/api/contacts/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactId: viewingContact.id,
+          method: replyMethod,
+          message: replyText
+        })
+      });
+
+      if (!response.ok) throw new Error('Erreur sauvegarde réponse');
+
+      // Réinitialiser les données
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      setViewingContact(null);
+      setReplyMethod(null);
+      setReplyText('');
+      showNotification('✅ Réponse envoyée avec succès!');
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      showNotification('❌ Erreur: ' + error.message, 'error');
+    }
   };
 
   const filteredContacts = filterStatus === 'all'
@@ -366,59 +389,6 @@ export default function ContactsPage() {
                     </div>
                   </div>
                 )}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Supprimer
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {/* Delete Confirmation */}
-        <AnimatePresence>
-          {deleteConfirm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-              onClick={() => setDeleteConfirm(null)}
-            >
-              <motion.div
-                initial={{ scale: 0.95 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.95 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4"
-              >
-                <h3 className="text-xl font-bold mb-4">Confirmer la suppression?</h3>
-                <p className="text-slate-600 mb-6">Ce contact sera supprimé définitivement.</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setDeleteConfirm(null)}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg font-semibold hover:bg-slate-50"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={() => deleteMutation.mutate(deleteConfirm)}
-                    disabled={deleteMutation.isPending}
-                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-semibold disabled:opacity-50"
-                  >
-                    {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
-                  </button>
-                </div>
               </motion.div>
             </motion.div>
           )}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Users, Briefcase, Lightbulb, FileText, Settings, BarChart3, LogOut, MessageSquare, Eye } from 'lucide-react';
+import { Menu, X, Users, Briefcase, Lightbulb, FileText, Settings, BarChart3, LogOut, MessageSquare, Eye, ClipboardList } from 'lucide-react';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -10,16 +10,26 @@ const navItems = [
   { path: '/solutions', label: 'Solutions', icon: Lightbulb },
   { path: '/testimonials', label: 'Témoignages', icon: MessageSquare },
   { path: '/contacts', label: 'Contacts', icon: FileText },
+  { path: '/news', label: 'Actualités', icon: FileText },
+  { path: '/jobs', label: 'Offres d\'emploi', icon: Briefcase },
+  { path: '/applications', label: 'Candidatures', icon: ClipboardList },
   { path: '/sync', label: 'Synchronisation', icon: Eye },
   { path: '/settings', label: 'Paramètres', icon: Settings },
 ];
 
-export default function AdminLayout({ children }) {
+export default function AdminLayout({ children, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
+  const userEmail = localStorage.getItem('userEmail') || 'Admin';
 
   const isActive = (path) => {
     return location.pathname === path;
+  };
+
+  const handleLogout = () => {
+    if (onLogout) onLogout();
+    navigate('/login');
   };
 
   return (
@@ -50,13 +60,19 @@ export default function AdminLayout({ children }) {
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-sm font-bold">
-                A
+                {userEmail.charAt(0).toUpperCase()}
               </div>
-              <span className="text-sm font-medium text-slate-900">Admin</span>
+              <span className="text-sm font-medium text-slate-900">{userEmail.split('@')[0]}</span>
             </div>
-            <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600 group">
-              <LogOut className="w-5 h-5 group-hover:text-red-600 transition-colors" />
-            </button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleLogout}
+              className="p-2 hover:bg-red-50 rounded-lg transition-colors text-slate-600 hover:text-red-600 group"
+              title="Se déconnecter"
+            >
+              <LogOut className="w-5 h-5 transition-colors" />
+            </motion.button>
           </div>
         </div>
       </header>

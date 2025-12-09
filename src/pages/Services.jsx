@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle2, Zap, Building2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, CheckCircle2, Zap, Building2, X, Clock, Users, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Services() {
   const navigate = useNavigate();
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedService, setSelectedService] = useState(null);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -142,7 +143,10 @@ export default function Services() {
                         </div>
                       )}
 
-                      <button className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-emerald-500/20">
+                      <button 
+                        onClick={() => setSelectedService(service)}
+                        className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-emerald-500/20"
+                      >
                         En savoir plus
                       </button>
                     </div>
@@ -153,6 +157,142 @@ export default function Services() {
           </div>
         </section>
       )}
+
+      {/* Service Details Modal */}
+      <AnimatePresence>
+        {selectedService && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl max-w-2xl w-full my-8 overflow-hidden"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedService(null)}
+                className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-lg transition-colors z-10"
+              >
+                <X className="w-6 h-6 text-slate-600" />
+              </button>
+
+              {/* Image */}
+              {selectedService.image && (
+                <div className="relative h-64 overflow-hidden bg-slate-100">
+                  <img
+                    src={
+                      selectedService.image.startsWith('http')
+                        ? selectedService.image
+                        : selectedService.image.startsWith('/uploads')
+                          ? `http://localhost:5000${selectedService.image}`
+                          : selectedService.image
+                    }
+                    alt={selectedService.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                </div>
+              )}
+
+              {/* Content */}
+              <div className="p-8 max-h-96 overflow-y-auto">
+                {/* Header */}
+                <div className="mb-6">
+                  {selectedService.category && (
+                    <p className="text-emerald-600 font-semibold text-sm mb-2 inline-block px-3 py-1 bg-emerald-50 rounded-full">
+                      {selectedService.category}
+                    </p>
+                  )}
+                  <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                    {selectedService.name}
+                  </h2>
+                  
+                  {selectedService.price && (
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <span className="text-4xl font-bold text-emerald-600">
+                        ${selectedService.price}
+                      </span>
+                      <span className="text-slate-600">par mois</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                <p className="text-slate-700 text-lg leading-relaxed mb-6">
+                  {selectedService.description}
+                </p>
+
+                {/* Details */}
+                {selectedService.details && (
+                  <div className="mb-6 p-4 bg-slate-50 rounded-lg">
+                    <h3 className="font-bold text-slate-900 mb-2">Description détaillée</h3>
+                    <p className="text-slate-700 whitespace-pre-wrap text-sm">
+                      {selectedService.details}
+                    </p>
+                  </div>
+                )}
+
+                {/* Full Features List */}
+                {Array.isArray(selectedService.features) && selectedService.features.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">
+                      ✨ Caractéristiques complètes
+                    </h3>
+                    <ul className="space-y-3">
+                      {selectedService.features.map((feature, i) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-slate-700">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Service Info Grid */}
+                <div className="grid md:grid-cols-3 gap-4 mb-6 pt-6 border-t border-slate-200">
+                  <div className="text-center">
+                    <Clock className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
+                    <p className="text-xs uppercase tracking-widest font-bold text-slate-600 mb-1">Durée</p>
+                    <p className="text-slate-900 font-semibold">{selectedService.duration || 'À définir'}</p>
+                  </div>
+                  <div className="text-center">
+                    <Users className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
+                    <p className="text-xs uppercase tracking-widest font-bold text-slate-600 mb-1">Support</p>
+                    <p className="text-slate-900 font-semibold">{selectedService.support || '24/7'}</p>
+                  </div>
+                  <div className="text-center">
+                    <Shield className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
+                    <p className="text-xs uppercase tracking-widest font-bold text-slate-600 mb-1">Garantie</p>
+                    <p className="text-slate-900 font-semibold">{selectedService.guarantee || '100%'}</p>
+                  </div>
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="flex gap-4 pt-6 border-t border-slate-200">
+                  <button
+                    onClick={() => setSelectedService(null)}
+                    className="flex-1 px-4 py-3 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-semibold"
+                  >
+                    Fermer
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedService(null);
+                      navigate('/contact');
+                    }}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold flex items-center justify-center gap-2"
+                  >
+                    Commander maintenant
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Why Choose Us */}
       <section className="py-24 bg-slate-50">

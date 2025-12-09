@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { siteSettings, navItems } from '../data/content';
+import { useAppSettings } from '../context/SettingsContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ChevronRight } from 'lucide-react';
 import { Button } from './Button';
@@ -10,6 +11,7 @@ export default function Layout({ children, currentPageName }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { settings } = useAppSettings();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -148,7 +150,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Footer */}
       <footer className="bg-slate-900 text-white pt-20 pb-8">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-12 mb-12">
+          <div className="grid md:grid-cols-5 gap-12 mb-12">
             {/* Brand */}
             <div>
               <div className="flex items-center gap-3 mb-4">
@@ -165,7 +167,7 @@ export default function Layout({ children, currentPageName }) {
                 </div>
               </div>
               <p className="text-slate-400 text-sm leading-relaxed">
-                Cabinet de conseil et d'ingénierie digitale dédié à la transformation numérique en Afrique.
+                {settings?.description || "Cabinet de conseil et d'ingénierie digitale dédié à la transformation numérique en Afrique."}
               </p>
             </div>
 
@@ -190,26 +192,43 @@ export default function Layout({ children, currentPageName }) {
               </ul>
             </div>
 
+            {/* Actualités & Recrutement */}
+            <div>
+              <h4 className="font-bold text-lg mb-4">Entreprise</h4>
+              <ul className="space-y-2 text-slate-400 text-sm">
+                <li><Link to={createPageUrl('news')} className="hover:text-green-400 transition-colors">Actualités</Link></li>
+                <li><Link to={createPageUrl('careers')} className="hover:text-green-400 transition-colors">Offres d'emploi</Link></li>
+                <li><Link to={createPageUrl('about')} className="hover:text-green-400 transition-colors">À propos</Link></li>
+                <li><Link to={createPageUrl('team')} className="hover:text-green-400 transition-colors">Notre équipe</Link></li>
+              </ul>
+            </div>
+
             {/* Contact */}
             <div>
               <h4 className="font-bold text-lg mb-4">Contact</h4>
               <div className="space-y-3 text-sm text-slate-400">
-                <div>
-                  <p className="text-white font-semibold mb-1">Téléphone</p>
-                  <a href={`tel:${siteSettings.phone}`} className="hover:text-green-400 transition-colors">
-                    {siteSettings.phone}
-                  </a>
-                </div>
-                <div>
-                  <p className="text-white font-semibold mb-1">Email</p>
-                  <a href={`mailto:${siteSettings.email}`} className="hover:text-green-400 transition-colors">
-                    {siteSettings.email}
-                  </a>
-                </div>
-                <div>
-                  <p className="text-white font-semibold mb-1">Adresse</p>
-                  <p>{siteSettings.address}</p>
-                </div>
+                {settings?.phone && (
+                  <div>
+                    <p className="text-white font-semibold mb-1">Téléphone</p>
+                    <a href={`tel:${settings.phone}`} className="hover:text-green-400 transition-colors">
+                      {settings.phone}
+                    </a>
+                  </div>
+                )}
+                {settings?.email && (
+                  <div>
+                    <p className="text-white font-semibold mb-1">Email</p>
+                    <a href={`mailto:${settings.email}`} className="hover:text-green-400 transition-colors">
+                      {settings.email}
+                    </a>
+                  </div>
+                )}
+                {settings?.address && (
+                  <div>
+                    <p className="text-white font-semibold mb-1">Adresse</p>
+                    <p>{settings.address}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -219,9 +238,18 @@ export default function Layout({ children, currentPageName }) {
             <div className="flex flex-col md:flex-row justify-between items-center text-sm text-slate-400">
               <p>© 2025 {siteSettings.company_name}. Tous droits réservés.</p>
               <div className="flex gap-6 mt-4 md:mt-0">
-                <a href={siteSettings.facebook_url} className="hover:text-green-400 transition-colors">Facebook</a>
-                <a href={siteSettings.linkedin_url} className="hover:text-green-400 transition-colors">LinkedIn</a>
-                <a href={siteSettings.twitter_url} className="hover:text-green-400 transition-colors">Twitter</a>
+                {settings?.socialMedia?.facebook && (
+                  <a href={settings.socialMedia.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Facebook</a>
+                )}
+                {settings?.socialMedia?.linkedin && (
+                  <a href={settings.socialMedia.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">LinkedIn</a>
+                )}
+                {settings?.socialMedia?.twitter && (
+                  <a href={settings.socialMedia.twitter} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Twitter</a>
+                )}
+                {settings?.socialMedia?.instagram && (
+                  <a href={settings.socialMedia.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Instagram</a>
+                )}
               </div>
             </div>
           </div>

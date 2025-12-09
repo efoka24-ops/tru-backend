@@ -65,23 +65,51 @@
   ],
   "contacts": [
     {
-      "id": 1,
-      "name": "Alice Martin",
-      "email": "alice@sitetru.com",
-      "message": "Inquiry about consulting services",
-      "submittedAt": "2025-01-10T10:30:00Z",
-      "status": "pending"
+      "id": 2,
+      "fullName": "Emmanuel Foka",
+      "email": "emmanuel@trugroup.cm",
+      "phone": "+237678758976",
+      "subject": "Demande de consultation",
+      "message": "test",
+      "status": "replied",
+      "createdAt": "2025-12-09T16:51:57.411Z",
+      "replyDate": "2025-12-09T16:57:07.359Z",
+      "replyMethod": "sms",
+      "replyMessage": "bien recu"
+    },
+    {
+      "id": 3,
+      "fullName": "Emmanuel Foka",
+      "email": "efoka24@gmail.com",
+      "phone": "+237678758976",
+      "subject": "Demande de devis",
+      "message": "test",
+      "status": "replied",
+      "createdAt": "2025-12-09T16:58:51.462Z",
+      "replyDate": "2025-12-09T17:44:17.948Z",
+      "replyMethod": "email",
+      "replyMessage": "test"
+    },
+    {
+      "id": 4,
+      "fullName": "Emmanuel Foka",
+      "email": "efoka24@gmail.com",
+      "phone": "+237678758976",
+      "subject": "Demande de consultation",
+      "message": "test",
+      "status": "pending",
+      "createdAt": "2025-12-09T17:40:22.716Z"
     }
   ],
   "team": [
     {
       "id": 2,
-      "name": "Sadia Halimatou",
+      "name": "Halimatou Sadia Ahmadou",
       "title": "Chef de Projet Junior",
-      "bio": "Expert in software architecture and development",
-      "image": "/uploads/iiiiii-1765287364981-689391162.jpg",
+      "bio": "Specialist in designing and implementing robust software architectures, with extensive expertise in guiding the development process from conception to deployment. Skilled in creating scalable, maintainable, and efficient systems that meet complex business and technical requirements.",
+      "image": "/uploads/IMG-20251209-WA0082-1765304556608-387683339.jpg",
       "email": "bob@sitetru.com",
-      "phone": "+237 6XX XXX XXX",
+      "phone": "+237 696317216",
       "linked_in": "",
       "specialties": [
         "Software Architecture",
@@ -93,11 +121,11 @@
     {
       "id": 3,
       "name": "Hervé Tatinou",
-      "title": "Design Lead",
-      "bio": "Creative designer focused on user experience",
+      "title": "Senior Design Lead",
+      "bio": "A passionate and innovative creative designer dedicated to crafting exceptional user experiences that seamlessly blend functionality with aesthetic appeal, ensuring every detail enhances usability, engagement, and overall satisfaction.",
       "image": "/uploads/WhatsApp Image 2025-12-09 at 08.00.31-1765287301157-188292703.jpeg",
       "email": "carol@sitetru.com",
-      "phone": "+237 6XX XXX XXX",
+      "phone": "+237 656298190",
       "linked_in": "",
       "specialties": [
         "UI/UX",
@@ -158,9 +186,9 @@
     "siteTitle": "Site TRU",
     "slogan": "Transforming Reality Universally",
     "tagline": "Innovation & Solutions",
-    "email": "contact@sitetru.com",
+    "email": "trugroupsarl@yahoo.com",
     "phone": "678758976",
-    "address": "123 Rue de Paris, 75000 Paris",
+    "address": "base 301, garoua, cameroun",
     "socialMedia": {
       "facebook": "",
       "twitter": "",
@@ -176,7 +204,10 @@
       "saturday": "Fermé",
       "sunday": "Fermé"
     },
-    "primaryColor": "#10b981"
+    "primaryColor": "#10b981",
+    "description": "",
+    "updatedAt": "2025-12-09T18:46:27.846Z",
+    "maintenanceMode": false
   },
   "testimonials": [
     {
@@ -208,6 +239,48 @@
       "rating": 5,
       "image": "/uploads/IMG_9235 - Copie-1765288953308-807192370.jpg",
       "createdAt": "2025-12-09T14:03:12.532Z"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 1,
+      "title": "dev react",
+      "description": "fhgfn",
+      "location": "garoua",
+      "type": "Stage",
+      "department": "",
+      "requirements": "",
+      "salaryRange": "",
+      "createdAt": "2025-12-09T18:09:54.603Z"
+    }
+  ],
+  "news": [
+    {
+      "id": 1,
+      "title": "test",
+      "description": "Test du frontend : les pages publiques News.jsx et Careers.jsx ont été vérifiées avec succès. Ce test confirme que la page News.jsx, dédiée à la diffusion des actualités et mises à jour, ainsi que la page Careers.jsx, centrée sur les opportunités professionnelles et les informations relatives aux carrières, fonctionnent correctement et répondent aux attentes en matière de performance et d’accessibilité. Ces résultats assurent expérience utilisateur fluide et cohérente pour les visiteurs consultant ces sections clés du site.",
+      "content": "",
+      "category": "Actualités",
+      "image": "/uploads/IMG_9254 - Copie-1765303905146-791273997.jpg",
+      "date": "2025-12-09T18:11:45.354Z",
+      "createdAt": "2025-12-09T18:11:45.354Z"
+    }
+  ],
+  "applications": [
+    {
+      "id": 1,
+      "jobId": 1,
+      "jobTitle": "dev react",
+      "fullName": "Emmanuel Foka",
+      "email": "emmanuel@trugroup.cm",
+      "phone": "+237678758976",
+      "linkedin": "",
+      "coverLetter": "srgrzgvzt",
+      "resume": "",
+      "status": "En cours",
+      "appliedAt": "2025-12-09T18:17:15.416Z",
+      "createdAt": "2025-12-09T18:17:15.429Z",
+      "updatedAt": "2025-12-09T18:17:50.065Z"
     }
   ]
 }
