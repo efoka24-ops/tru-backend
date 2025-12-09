@@ -25,28 +25,18 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configuration multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const name = path.basename(file.originalname, ext);
-    cb(null, name + '-' + uniqueSuffix + ext);
-  }
-});
+// Configuration multer - Use memory storage for Vercel compatibility
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Format d\'image non autorisé'));
+      cb(new Error('Format de fichier non autorisé'));
     }
   }
 });
@@ -172,18 +162,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running' });
 });
 
-// Upload Image Route
+// Upload Image Route - Returns base64 encoded data URL for Vercel
 app.post('/api/upload', upload.single('image'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
     
-    const imageUrl = `/uploads/${req.file.filename}`;
+    // Convert buffer to base64 data URL
+    const base64 = req.file.buffer.toString('base64');
+    const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
+    
     res.json({ 
       success: true,
-      url: imageUrl,
-      filename: req.file.filename
+      url: dataUrl,
+      filename: req.file.originalname
     });
   } catch (error) {
     console.error('Erreur upload:', error);
