@@ -152,7 +152,6 @@ export const apiService = {
     // If it's a relative path, prepend the API base URL
     // API_BASE_URL already includes /api, so just append the path
     return `${API_BASE_URL}${imagePath}`;
-  },
   }
 };
 
