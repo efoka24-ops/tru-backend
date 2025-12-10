@@ -1,9 +1,13 @@
 // Configuration API - Use VITE_API_URL from .env files
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api`
+const baseURL = import.meta.env.VITE_API_URL 
+  ? import.meta.env.VITE_API_URL
   : (import.meta.env.DEV 
-    ? 'http://localhost:5000/api' 
-    : '/api');
+    ? 'http://localhost:5000' 
+    : window.location.origin);
+
+// Normalize URL - remove trailing slash
+const cleanURL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
+const API_BASE_URL = `${cleanURL}/api`;
 
 // Log the API URL for debugging
 console.log('🔗 API_BASE_URL:', API_BASE_URL);
