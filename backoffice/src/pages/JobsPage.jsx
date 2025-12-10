@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit2, X, Search } from 'lucide-react';
+import { backendClient } from '@/api/backendClient';
 
 export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,21 +23,12 @@ export default function JobsPage() {
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['jobs'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:5000/api/jobs');
-      if (!response.ok) throw new Error('Erreur chargement');
-      return response.json();
-    },
+    queryFn: async () => backendClient.getJobs(),
     staleTime: 30000,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) =>
-      fetch('http://localhost:5000/api/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      }).then(r => r.json()),
+    mutationFn: (data) => backendClient.createJob(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       setShowModal(false);
@@ -57,12 +49,7 @@ export default function JobsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data) =>
-      fetch(`http://localhost:5000/api/jobs/${data.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      }).then(r => r.json()),
+    mutationFn: (data) => backendClient.updateJob(data.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       setShowModal(false);
@@ -84,9 +71,7 @@ export default function JobsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) =>
-      fetch(`http://localhost:5000/api/jobs/${id}`, { method: 'DELETE' })
-        .then(r => r.json()),
+    mutationFn: (id) => backendClient.deleteJob(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       setDeleteConfirm(null);

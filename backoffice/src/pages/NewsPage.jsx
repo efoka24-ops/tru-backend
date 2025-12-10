@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit2, X, Search } from 'lucide-react';
+import { backendClient } from '@/api/backendClient';
 
 export default function NewsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,9 +21,7 @@ export default function NewsPage() {
   const { data: news = [], isLoading } = useQuery({
     queryKey: ['news'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:5000/api/news');
-      if (!response.ok) throw new Error('Erreur chargement');
-      return response.json();
+      return await backendClient.getNews();
     },
     staleTime: 30000,
   });
@@ -35,12 +34,7 @@ export default function NewsPage() {
       formDataObj.append('category', data.category);
       if (data.image) formDataObj.append('image', data.image);
 
-      const response = await fetch('http://localhost:5000/api/news', {
-        method: 'POST',
-        body: formDataObj
-      });
-      if (!response.ok) throw new Error('Erreur création');
-      return response.json();
+      return await backendClient.createNews(formDataObj);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['news'] });
@@ -61,12 +55,7 @@ export default function NewsPage() {
       formDataObj.append('category', data.category);
       if (data.image) formDataObj.append('image', data.image);
 
-      const response = await fetch(`http://localhost:5000/api/news/${data.id}`, {
-        method: 'PUT',
-        body: formDataObj
-      });
-      if (!response.ok) throw new Error('Erreur mise à jour');
-      return response.json();
+      return backendClient.updateNews(data.id, formDataObj);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['news'] });
@@ -81,9 +70,7 @@ export default function NewsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) =>
-      fetch(`http://localhost:5000/api/news/${id}`, { method: 'DELETE' })
-        .then(r => r.json()),
+    mutationFn: (id) => backendClient.deleteNews(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['news'] });
       setDeleteConfirm(null);

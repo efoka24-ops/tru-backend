@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { backendClient } from '@/api/backendClient';
 
 export function useSyncStatus() {
   const [syncStatus, setSyncStatus] = useState({
@@ -24,12 +25,10 @@ export function useSyncStatus() {
       errors: []
     };
 
-    // Vérifier Backend principal (5000)
+    // Vérifier Backend principal
     try {
-      const response = await fetch('http://localhost:5000/api/health', {
-        method: 'GET'
-      });
-      newStatus.backend = response.ok ? 'connected' : 'error';
+      await backendClient.checkHealth();
+      newStatus.backend = 'connected';
     } catch (error) {
       newStatus.backend = 'offline';
       newStatus.errors.push(`Backend: ${error.message}`);

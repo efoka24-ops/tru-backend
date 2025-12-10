@@ -15,6 +15,7 @@ import {
   FileText
 } from 'lucide-react';
 import { apiClient } from '@/api/simpleClient';
+import { backendClient } from '@/api/backendClient';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
@@ -27,41 +28,7 @@ export default function SettingsPage() {
     queryKey: ['settings'],
     queryFn: async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/settings');
-        if (!response.ok) {
-          return {
-            id: 1,
-            siteTitle: 'TRU GROUP',
-            slogan: 'Transforming Reality Universally',
-            tagline: 'Cabinet de conseil en digitalisation',
-            email: 'contact@trugroup.cm',
-            phone: '+237 6 XX XX XX XX',
-            address: 'Douala, Cameroun',
-            description: 'TRU GROUP est un cabinet de conseil en digitalisation basé en Afrique',
-            socialMedia: {
-              facebook: 'https://facebook.com/trugroup',
-              twitter: 'https://twitter.com/trugroup',
-              linkedin: 'https://linkedin.com/company/trugroup',
-              instagram: 'https://instagram.com/trugroup',
-              whatsapp: '',
-            },
-            businessHours: {
-              monday: '09:00 - 18:00',
-              tuesday: '09:00 - 18:00',
-              wednesday: '09:00 - 18:00',
-              thursday: '09:00 - 18:00',
-              friday: '09:00 - 18:00',
-              saturday: 'Fermé',
-              sunday: 'Fermé',
-            },
-            primaryColor: '#10b981',
-            secondaryColor: '#0d9488',
-            accentColor: '#64748b',
-            maintenanceMode: false,
-            maintenanceMessage: 'Site en maintenance. Nous revenons bientôt!',
-          };
-        }
-        return response.json();
+        return await backendClient.getSettings();
       } catch (error) {
         console.error('Erreur chargement settings:', error);
         return null;
@@ -79,17 +46,7 @@ export default function SettingsPage() {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await fetch('http://localhost:5000/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error('Erreur sauvegarde: ' + error);
-      }
-      return response.json();
+      return await backendClient.updateSettings(data);
     },
     onSuccess: (data) => {
       // Invalidate cache

@@ -59,21 +59,18 @@ export default function SyncViewPage() {
   // Données du Frontend (content.js)
   const frontendTeam = TEAM_DATA;
 
-  // Récupérer l'équipe du Backend Principal (5000)
+  // Récupérer l'équipe du Backend Principal
   const { data: backendTeam = [], isLoading: backendLoading, refetch: refetchBackend } = useQuery({
     queryKey: ['team', 'backend'],
     queryFn: async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/team');
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Backend Team (5000):', data?.length, 'membres');
-          return data || [];
-        }
+        const data = await backendClient.getTeam();
+        console.log('✅ Backend Team:', data?.length, 'membres');
+        return data || [];
       } catch (error) {
         console.error('❌ Erreur Backend:', error.message);
+        return [];
       }
-      return [];
     },
     staleTime: 0,
     cacheTime: 0,

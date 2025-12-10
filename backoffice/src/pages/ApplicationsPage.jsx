@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Eye, Download, CheckCircle2, Clock, X, Search } from 'lucide-react';
+import { backendClient } from '@/api/backendClient';
 
 export default function ApplicationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -13,11 +14,7 @@ export default function ApplicationsPage() {
 
   const { data: applications = [], isLoading } = useQuery({
     queryKey: ['applications'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:5000/api/applications');
-      if (!response.ok) throw new Error('Erreur chargement');
-      return response.json();
-    },
+    queryFn: async () => backendClient.getApplications(),
     staleTime: 30000,
   });
 

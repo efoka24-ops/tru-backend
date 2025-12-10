@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Users, Briefcase, Lightbulb, FileText, Settings, BarChart3, TrendingUp, AlertCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/api/simpleClient';
+import { backendClient } from '@/api/backendClient';
 import SyncStatus from '@/components/SyncStatus';
 
 export default function Dashboard() {
@@ -15,7 +16,7 @@ export default function Dashboard() {
           apiClient.getServices(),
           apiClient.getSolutions(),
           apiClient.getContacts(),
-          fetch('http://localhost:5000/api/settings').then(r => r.json()).catch(() => ({}))
+          backendClient.getSettings().catch(() => ({}))
         ]);
         return {
           team: (team || []).length,

@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const API_URL = 'http://localhost:5000/api'
+// Use environment variable for backend URL, fallback to localhost for development
+const API_URL = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api`
+
+console.log('🔗 Backoffice API_URL:', API_URL)
 
 export const api = axios.create({
   baseURL: API_URL,

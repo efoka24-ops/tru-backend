@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/api/simpleClient';
 import { uploadImage } from '@/api/uploadHelper';
+import { backendClient } from '@/api/backendClient';
 
 export default function TestimonialsPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,11 +16,7 @@ export default function TestimonialsPage() {
     queryKey: ['testimonials'],
     queryFn: async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/testimonials');
-        if (!response.ok) throw new Error('Erreur chargement témoignages');
-        const data = await response.json();
-        return data || [];
-      } catch (error) {
+        return await backendClient.getTestimonials();      } catch (error) {
         console.error('❌ Erreur:', error);
         return [];
       }
@@ -31,21 +28,9 @@ export default function TestimonialsPage() {
   const mutation = useMutation({
     mutationFn: async (data) => {
       if (editingTestimonial?.id) {
-        const response = await fetch(`http://localhost:5000/api/testimonials/${editingTestimonial.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        if (!response.ok) throw new Error('Erreur modification');
-        return response.json();
+        return await backendClient.updateTestimonial(editingTestimonial.id, data);
       } else {
-        const response = await fetch('http://localhost:5000/api/testimonials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        if (!response.ok) throw new Error('Erreur création');
-        return response.json();
+        return await backendClient.createTestimonial(data);
       }
     },
     onSuccess: () => {
@@ -63,11 +48,7 @@ export default function TestimonialsPage() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      const response = await fetch(`http://localhost:5000/api/testimonials/${id}`, {
-        method: 'DELETE'
-      });
-      if (!response.ok) throw new Error('Erreur suppression');
-      return response.json();
+      return await backendClient.deleteTestimonial(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['testimonials'] });

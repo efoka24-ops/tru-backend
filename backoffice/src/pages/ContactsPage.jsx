@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Trash2, AlertCircle, Mail, MessageSquare, Eye, Send, X } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import { backendClient } from '@/api/backendClient';
 
 // Initialiser EmailJS avec ta clé publique
 emailjs.init('qkNcx5-8mPFa4DtMh');
@@ -20,9 +21,7 @@ export default function ContactsPage() {
     queryKey: ['contacts'],
     queryFn: async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/contacts');
-        if (!response.ok) throw new Error('Erreur chargement contacts');
-        const data = await response.json();
+        const data = await backendClient.getContacts();
         return data || [];
       } catch (error) {
         console.error('❌ Erreur:', error);
@@ -33,12 +32,7 @@ export default function ContactsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => 
-      fetch(`http://localhost:5000/api/contacts/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      }).then(r => r.json()),
+    mutationFn: ({ id, data }) => backendClient.updateContact(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       showNotification('✅ Contact mis à jour!');
@@ -49,9 +43,7 @@ export default function ContactsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) =>
-      fetch(`http://localhost:5000/api/contacts/${id}`, { method: 'DELETE' })
-        .then(r => r.json()),
+    mutationFn: (id) => backendClient.deleteContact(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       setDeleteConfirm(null);
@@ -97,17 +89,10 @@ export default function ContactsPage() {
       }
 
       // Sauvegarder la réponse dans la base de données
-      const response = await fetch('http://localhost:5000/api/contacts/reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contactId: viewingContact.id,
-          method: replyMethod,
-          message: replyText
-        })
+      await backendClient.replyToContact(viewingContact.id, {
+        method: replyMethod,
+        message: replyText
       });
-
-      if (!response.ok) throw new Error('Erreur sauvegarde réponse');
 
       // Réinitialiser les données
       queryClient.invalidateQueries({ queryKey: ['contacts'] });

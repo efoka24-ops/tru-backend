@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, Save, X, Upload, ArrowUp, ArrowDown, CheckCircle, AlertCircle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,9 +24,8 @@ export default function EquipePage() {
   const queryClient = useQueryClient();
 
   // URLs de configuration pour les différents services
-  const BACKEND_API_URL = 'http://localhost:5000/api'; // Backend principal
-  const FRONTEND_API_URL = 'http://localhost:5173/api';
-  const TRU_SITE_URL = 'http://localhost:3000/api'; // Site TRU principal
+  const FRONTEND_API_URL = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api`;
+  const TRU_SITE_URL = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api`;
 
   // Récupérer les données du frontend d'abord
   const fetchFrontendTeam = async (source = 'default') => {
