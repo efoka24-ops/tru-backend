@@ -126,9 +126,16 @@ export default function EquipePage() {
 
   // Envoyer une mise à jour à tous les services
   const syncTeamToFrontend = async (action, member) => {
+    // Normalize member data - convert photo_url to image for backend compatibility
+    const normalizedMember = {
+      ...member,
+      image: member.photo_url || member.image,  // Ensure 'image' field for backend
+    };
+    delete normalizedMember.photo_url; // Remove photo_url to avoid duplication
+
     const payload = {
       action,
-      member,
+      member: normalizedMember,
       timestamp: new Date().toISOString(),
       source: 'backoffice'
     };
@@ -139,18 +146,18 @@ export default function EquipePage() {
         await fetch(`${BACKEND_API_URL}/team`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(member)
+          body: JSON.stringify(normalizedMember)
         });
         console.log(`✅ Membre créé et synchronisé au backend principal`);
-      } else if (action === 'update' && member.id) {
-        await fetch(`${BACKEND_API_URL}/team/${member.id}`, {
+      } else if (action === 'update' && normalizedMember.id) {
+        await fetch(`${BACKEND_API_URL}/team/${normalizedMember.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(member)
+          body: JSON.stringify(normalizedMember)
         });
         console.log(`✅ Membre modifié et synchronisé au backend principal`);
-      } else if (action === 'delete' && member.id) {
-        await fetch(`${BACKEND_API_URL}/team/${member.id}`, {
+      } else if (action === 'delete' && normalizedMember.id) {
+        await fetch(`${BACKEND_API_URL}/team/${normalizedMember.id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
         });

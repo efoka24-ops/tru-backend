@@ -150,8 +150,9 @@ export const apiService = {
       return imagePath;
     }
     // If it's a relative path, prepend the API base URL
-    const baseUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
-    return `${baseUrl}${imagePath}`;
+    // API_BASE_URL already includes /api, so just append the path
+    return `${API_BASE_URL}${imagePath}`;
+  },
   }
 };
 
