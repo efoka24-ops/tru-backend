@@ -3,7 +3,9 @@
  * Centralized API calls with environment-aware URLs
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+// Remove trailing slash if present
+const BACKEND_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
 console.log('🔗 Backend Client URL:', BACKEND_URL);
 

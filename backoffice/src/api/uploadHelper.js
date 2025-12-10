@@ -2,7 +2,8 @@
  * Upload Helper - Centralized upload functionality
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 
 export async function uploadImage(file) {
   try {

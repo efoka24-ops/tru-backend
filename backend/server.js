@@ -54,11 +54,27 @@ app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false
+  credentials: false,
+  maxAge: 86400 // 24 hours
 }));
 
-// Handle preflight OPTIONS requests explicitly
+// Handle preflight OPTIONS requests explicitly (BEFORE other routes)
 app.options('*', cors());
+
+// Force HTTPS and remove trailing slashes (important for Vercel)
+app.use((req, res, next) => {
+  // Ensure CORS headers are set
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Remove trailing slashes from routes (prevents 308 redirects)
+  if (req.path !== '/' && req.path.endsWith('/')) {
+    const query = req.url.slice(req.path.length);
+    return res.redirect(301, req.baseUrl + req.path.slice(0, -1) + query);
+  }
+  next();
+});
 
 app.use(express.json());
 
