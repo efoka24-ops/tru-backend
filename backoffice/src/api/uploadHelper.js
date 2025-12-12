@@ -1,5 +1,6 @@
 /**
  * Upload Helper - Centralized upload functionality
+ * Converts files to base64 data URLs for Vercel compatibility
  */
 
 const baseURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -11,21 +12,19 @@ export async function uploadImage(file) {
       throw new Error('Aucun fichier fourni');
     }
 
-    const formData = new FormData();
-    formData.append('image', file);
-
-    const response = await fetch(`${BACKEND_URL}/api/upload`, {
-      method: 'POST',
-      body: formData
+    // Convert file to base64 data URL directly (client-side)
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64DataUrl = event.target.result; // format: data:image/...;base64,...
+        console.log('✅ Image converted to base64 (size:', base64DataUrl.length, 'bytes)');
+        resolve(base64DataUrl);
+      };
+      reader.onerror = () => {
+        reject(new Error('Erreur lors de la lecture du fichier'));
+      };
+      reader.readAsDataURL(file);
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Erreur upload: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.url; // Returns base64 data URL or path
   } catch (error) {
     console.error('Upload error:', error);
     throw error;
@@ -38,21 +37,19 @@ export async function uploadResume(file) {
       throw new Error('Aucun fichier fourni');
     }
 
-    const formData = new FormData();
-    formData.append('resume', file);
-
-    const response = await fetch(`${BACKEND_URL}/api/upload`, {
-      method: 'POST',
-      body: formData
+    // Convert resume to base64 data URL directly
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64DataUrl = event.target.result;
+        console.log('✅ Resume converted to base64');
+        resolve(base64DataUrl);
+      };
+      reader.onerror = () => {
+        reject(new Error('Erreur lors de la lecture du fichier'));
+      };
+      reader.readAsDataURL(file);
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Erreur upload: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.url;
   } catch (error) {
     console.error('Resume upload error:', error);
     throw error;

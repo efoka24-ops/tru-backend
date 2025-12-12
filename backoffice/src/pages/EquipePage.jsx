@@ -268,21 +268,19 @@ export default function EquipePage() {
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Aperçu local
+      // Convertir en base64 data URL
       const reader = new FileReader();
       reader.onload = (event) => {
-        setPhotoPreview(event.target.result);
+        const base64DataUrl = event.target.result; // Already formatted as data:image/...;base64,...
+        setPhotoPreview(base64DataUrl);
+        // Store the base64 data URL directly - no need to upload
+        setEditingMember({ ...editingMember, photo_url: base64DataUrl });
+        showNotification('Photo chargée avec succès!', 'success', 2000);
+      };
+      reader.onerror = () => {
+        showNotification('Erreur lors de la lecture du fichier', 'error', 3000);
       };
       reader.readAsDataURL(file);
-
-      // Upload vers le backend
-      try {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
-        setEditingMember({ ...editingMember, photo_url: file_url });
-        showNotification('Photo uploadée avec succès!', 'success', 2000);
-      } catch (error) {
-        showNotification('Erreur lors de l\'upload de la photo', 'error', 3000);
-      }
     }
   };
 

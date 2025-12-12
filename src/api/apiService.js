@@ -142,15 +142,15 @@ export const apiService = {
     }
   },
 
-  // Helper to get full image URL
+  // Helper to get image URL - images are stored as full URLs or base64 in database
   getImageUrl(imagePath) {
     if (!imagePath) return null;
-    // If it's already a full URL (starts with http or is base64 data URL)
+    // Return as-is if it's already a full URL or base64 data URL
     if (imagePath.startsWith('http') || imagePath.startsWith('data:')) {
       return imagePath;
     }
-    // If it's a relative path, prepend the API base URL
-    // API_BASE_URL already includes /api, so just append the path
+    // For any other path (legacy /uploads), try to fetch from API
+    // But images should be stored as full URLs or base64, not paths
     return `${API_BASE_URL}${imagePath}`;
   }
 };
