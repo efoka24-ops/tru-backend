@@ -1,40 +1,29 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import multer from 'multer';
-import { readData, writeData } from './storage.js';
+import * as db from './db.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Configuration EmailJS (gratuit, pas de Nodemailer)
-console.log('📧 EmailJS configuré - Prêt pour envoyer des emails via https://emailjs.com');
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const dataPath = path.join(__dirname, 'data.json');
-const uploadsDir = path.join(__dirname, 'uploads');
-
-// Créer le dossier uploads s'il n'existe pas (skip on Vercel)
-if (process.env.VERCEL !== '1') {
+// Initialize PostgreSQL database on startup
+(async () => {
   try {
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-  } catch (err) {
-    console.warn('⚠️ Could not create uploads directory:', err.message);
+    await db.initializeDatabase();
+    console.log('✅ PostgreSQL database initialized');
+  } catch (error) {
+    console.warn('⚠️ Warning: Could not initialize PostgreSQL');
+    console.warn('Error:', error.message);
   }
-}
+})();
+
+console.log('📧 Backend server starting on port', PORT);
 
 // Configuration multer - Use memory storage for Vercel compatibility
 const storage = multer.memoryStorage();
-
 const upload = multer({ 
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
@@ -49,45 +38,42 @@ const upload = multer({
 });
 
 // Middleware
-// CORS Configuration - Allow all origins with proper headers
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: false,
-  maxAge: 86400 // 24 hours
+  maxAge: 86400
 }));
 
-// Handle preflight OPTIONS requests explicitly (BEFORE other routes)
 app.options('*', cors());
 
-// Increase request size limits for base64 images
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Routes Health
+// ============= HEALTH ROUTES =============
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running' });
 });
 
-// Test route for debugging
 app.get('/api/test', (req, res) => {
   res.json({ 
     status: 'OK',
     message: 'Backend is responding correctly',
     timestamp: new Date().toISOString(),
-    apiUrl: process.env.VITE_API_URL || 'Not set'
+    database: 'PostgreSQL'
   });
 });
 
-// Upload Image Route - Returns base64 encoded data URL for Vercel
+// ============= UPLOAD ROUTE =============
+
 app.post('/api/upload', upload.single('image'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
     
-    // Convert buffer to base64 data URL
     const base64 = req.file.buffer.toString('base64');
     const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
     
@@ -102,1098 +88,588 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   }
 });
 
-// Services Routes
-app.get('/api/services', (req, res) => {
-  const data = readData();
-  res.json(data.services);
-});
+// ============= TEAM ROUTES =============
 
-app.post('/api/services', (req, res) => {
+app.get('/api/team', async (req, res) => {
   try {
-    const data = readData();
-    if (!data.services) data.services = [];
-    
-    const ids = data.services.map(s => s.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    
-    const newService = {
-      id: maxId + 1,
-      ...req.body
-    };
-    data.services.push(newService);
-    
-    if (writeData(data)) {
-      res.status(201).json(newService);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
+    const team = await db.getTeam();
+    res.json(team);
   } catch (error) {
-    console.error('Erreur création service:', error);
-    res.status(500).json({ error: error.message || 'Erreur création service' });
+    console.error('Erreur récupération équipe:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/services/:id', (req, res) => {
+app.post('/api/team', upload.single('image'), async (req, res) => {
   try {
-    const data = readData();
-    if (!data.services) data.services = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.services.findIndex(s => s.id === id);
-    
-    if (index !== -1) {
-      data.services[index] = { ...data.services[index], ...req.body, id };
-      
-      if (writeData(data)) {
-        res.json(data.services[index]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Service non trouvé' });
-    }
-  } catch (error) {
-    console.error('Erreur modification service:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification service' });
-  }
-});
-
-app.delete('/api/services/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.services) data.services = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.services.findIndex(s => s.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.services.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Service non trouvé' });
-    }
-  } catch (error) {
-    console.error('Erreur suppression service:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression service' });
-  }
-});
-
-// Content Routes
-app.get('/api/content', (req, res) => {
-  const data = readData();
-  res.json(data.content);
-});
-
-app.post('/api/content', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.content) data.content = [];
-    
-    const ids = data.content.map(c => c.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    
-    const newContent = {
-      id: maxId + 1,
-      ...req.body
-    };
-    data.content.push(newContent);
-    
-    if (writeData(data)) {
-      res.status(201).json(newContent);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
-  } catch (error) {
-    console.error('Erreur création contenu:', error);
-    res.status(500).json({ error: error.message || 'Erreur création contenu' });
-  }
-});
-
-app.put('/api/content/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.content) data.content = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.content.findIndex(c => c.id === id);
-    
-    if (index !== -1) {
-      data.content[index] = { ...data.content[index], ...req.body, id };
-      
-      if (writeData(data)) {
-        res.json(data.content[index]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Contenu non trouvé' });
-    }
-  } catch (error) {
-    console.error('Erreur modification contenu:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification contenu' });
-  }
-});
-
-app.delete('/api/content/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.content) data.content = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.content.findIndex(c => c.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.content.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Contenu non trouvé' });
-    }
-  } catch (error) {
-    console.error('Erreur suppression contenu:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression contenu' });
-  }
-});
-
-// Team Routes
-app.get('/api/team', (req, res) => {
-  const data = readData();
-  res.json(data.team);
-});
-
-app.post('/api/team', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.team) data.team = [];
-    
-    const ids = data.team.map(t => t.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    
-    const newMember = {
-      id: maxId + 1,
-      ...req.body
-    };
-    
-    data.team.push(newMember);
-    
-    if (writeData(data)) {
-      res.status(201).json(newMember);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
-  } catch (error) {
-    console.error('Erreur création membre:', error);
-    res.status(500).json({ error: error.message || 'Erreur création membre' });
-  }
-});
-
-app.put('/api/team/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.team) data.team = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.team.findIndex(t => t.id === id);
-    
-    if (index !== -1) {
-      data.team[index] = { ...data.team[index], ...req.body, id };
-      
-      if (writeData(data)) {
-        res.json(data.team[index]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Membre non trouvé' });
-    }
-  } catch (error) {
-    console.error('Erreur modification membre:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification membre' });
-  }
-});
-
-app.delete('/api/team/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.team) data.team = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.team.findIndex(t => t.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.team.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Membre non trouvé' });
-    }
-  } catch (error) {
-    console.error('Erreur suppression membre:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression membre' });
-  }
-});
-
-// SOLUTIONS ROUTES
-app.get('/api/solutions', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.solutions) data.solutions = [];
-    res.json(data.solutions);
-  } catch (error) {
-    console.error('Erreur récupération solutions:', error);
-    res.status(500).json({ error: error.message || 'Erreur récupération solutions' });
-  }
-});
-
-app.post('/api/solutions', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.solutions) data.solutions = [];
-    
-    const ids = data.solutions.map(s => s.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    const newId = maxId + 1;
-    
-    const newSolution = {
-      id: newId,
-      ...req.body,
-      createdAt: new Date().toISOString()
-    };
-    
-    data.solutions.push(newSolution);
-    
-    if (writeData(data)) {
-      res.status(201).json(newSolution);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
-  } catch (error) {
-    console.error('Erreur création solution:', error);
-    res.status(500).json({ error: error.message || 'Erreur création solution' });
-  }
-});
-
-app.put('/api/solutions/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.solutions) data.solutions = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.solutions.findIndex(s => s.id === id);
-    
-    if (index !== -1) {
-      data.solutions[index] = { ...data.solutions[index], ...req.body, id };
-      
-      if (writeData(data)) {
-        res.json(data.solutions[index]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Solution non trouvée' });
-    }
-  } catch (error) {
-    console.error('Erreur modification solution:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification solution' });
-  }
-});
-
-app.delete('/api/solutions/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.solutions) data.solutions = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.solutions.findIndex(s => s.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.solutions.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Solution non trouvée' });
-    }
-  } catch (error) {
-    console.error('Erreur suppression solution:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression solution' });
-  }
-});
-
-// SETTINGS ROUTES
-app.get('/api/settings', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.settings) {
-      data.settings = {
-        id: 1,
-        siteTitle: 'TRU GROUP',
-        slogan: 'Transforming Reality Universally',
-        tagline: 'Cabinet de conseil en digitalisation',
-        description: 'TRU GROUP est un cabinet de conseil en digitalisation basé en Afrique',
-        email: 'contact@trugroup.cm',
-        phone: '+237 6 XX XX XX XX',
-        address: 'Douala, Cameroun',
-        socialMedia: { 
-          facebook: 'https://facebook.com/trugroup', 
-          twitter: 'https://twitter.com/trugroup', 
-          linkedin: 'https://linkedin.com/company/trugroup', 
-          instagram: 'https://instagram.com/trugroup',
-          whatsapp: ''
-        },
-        businessHours: {
-          monday: '09:00 - 18:00',
-          tuesday: '09:00 - 18:00',
-          wednesday: '09:00 - 18:00',
-          thursday: '09:00 - 18:00',
-          friday: '09:00 - 18:00',
-          saturday: 'Fermé',
-          sunday: 'Fermé'
-        },
-        primaryColor: '#10b981',
-        secondaryColor: '#0d9488',
-        accentColor: '#64748b',
-        maintenanceMode: false,
-        maintenanceMessage: 'Site en maintenance. Nous revenons bientôt!'
-      };
-    }
-    res.json(data.settings);
-  } catch (error) {
-    console.error('Erreur récupération settings:', error);
-    res.status(500).json({ error: error.message || 'Erreur récupération settings' });
-  }
-});
-
-app.post('/api/settings', (req, res) => {
-  try {
-    const data = readData();
-    data.settings = { 
-      id: 1, 
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-    
-    if (writeData(data)) {
-      console.log('✅ Paramètres sauvegardés:', data.settings.siteTitle);
-      res.json(data.settings);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
-  } catch (error) {
-    console.error('Erreur sauvegarde settings:', error);
-    res.status(500).json({ error: error.message || 'Erreur sauvegarde settings' });
-  }
-});
-
-// CONTACTS ROUTES (pour formulaire contact et testimonials)
-app.get('/api/contacts', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.contacts) data.contacts = [];
-    res.json(data.contacts);
-  } catch (error) {
-    console.error('Erreur récupération contacts:', error);
-    res.status(500).json({ error: error.message || 'Erreur récupération contacts' });
-  }
-});
-
-app.post('/api/contacts', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.contacts) data.contacts = [];
-    
-    const ids = data.contacts.map(c => c.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    const newId = maxId + 1;
-    
-    const newContact = {
-      id: newId,
-      ...req.body,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-    
-    data.contacts.push(newContact);
-    
-    if (writeData(data)) {
-      res.status(201).json(newContact);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
-  } catch (error) {
-    console.error('Erreur création contact:', error);
-    res.status(500).json({ error: error.message || 'Erreur création contact' });
-  }
-});
-
-app.put('/api/contacts/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.contacts) data.contacts = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.contacts.findIndex(c => c.id === id);
-    
-    if (index !== -1) {
-      data.contacts[index] = { ...data.contacts[index], ...req.body, id };
-      
-      if (writeData(data)) {
-        res.json(data.contacts[index]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Contact non trouvé' });
-    }
-  } catch (error) {
-    console.error('Erreur modification contact:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification contact' });
-  }
-});
-
-app.delete('/api/contacts/:id', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.contacts) data.contacts = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.contacts.findIndex(c => c.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.contacts.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Contact non trouvé' });
-    }
-  } catch (error) {
-    console.error('Erreur suppression contact:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression contact' });
-  }
-});
-
-// CONTACT REPLY ROUTE
-app.post('/api/contacts/reply', async (req, res) => {
-  try {
-    const { contactId, method, message } = req.body;
-    
-    if (!contactId || !method || !message) {
-      return res.status(400).json({ error: 'Données manquantes' });
-    }
-
-    const data = readData();
-    const contact = data.contacts?.find(c => c.id === parseInt(contactId));
-    
-    if (!contact) {
-      return res.status(404).json({ error: 'Contact non trouvé' });
-    }
-
-    // Mettre à jour le statut du contact
-    const contactIndex = data.contacts.findIndex(c => c.id === parseInt(contactId));
-    if (contactIndex !== -1) {
-      data.contacts[contactIndex].status = 'replied';
-      data.contacts[contactIndex].replyDate = new Date().toISOString();
-      data.contacts[contactIndex].replyMethod = method;
-      data.contacts[contactIndex].replyMessage = message;
-      writeData(data);
-    }
-
-    // Envoyer par email via EmailJS
-    if (method === 'email') {
-      try {
-        console.log('📧 Tentative d\'envoi email via EmailJS...');
-        console.log('Service ID:', process.env.EMAILJS_SERVICE_ID);
-        console.log('Public Key:', process.env.EMAILJS_PUBLIC_KEY);
-        console.log('Template ID:', process.env.EMAILJS_TEMPLATE_ID);
-        console.log('To Email:', contact.email);
-
-        // Envoyer un email au client
-        const response1 = await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
-          service_id: process.env.EMAILJS_SERVICE_ID,
-          template_id: process.env.EMAILJS_TEMPLATE_ID,
-          user_id: process.env.EMAILJS_PUBLIC_KEY,
-          template_params: {
-            to_email: contact.email,
-            to_name: contact.fullName,
-            subject: `Réponse à votre demande: ${contact.subject}`,
-            message: message,
-            from_name: 'TRU GROUP'
-          }
-        });
-
-        console.log(`✅ Email client envoyé:`, response1.status, response1.data);
-
-        // Envoyer une notification à l'admin
-        const response2 = await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
-          service_id: process.env.EMAILJS_SERVICE_ID,
-          template_id: process.env.EMAILJS_TEMPLATE_ID,
-          user_id: process.env.EMAILJS_PUBLIC_KEY,
-          template_params: {
-            to_email: process.env.ADMIN_EMAIL,
-            to_name: 'Admin TRU GROUP',
-            subject: `Réponse envoyée à ${contact.fullName}`,
-            message: `Vous avez envoyé une réponse à ${contact.fullName} (${contact.email})\n\nRéponse:\n${message}`,
-            from_name: 'TRU GROUP Notification'
-          }
-        });
-
-        console.log(`✅ Email admin envoyé:`, response2.status, response2.data);
-        
-        res.json({ 
-          success: true, 
-          message: `Email envoyé à ${contact.email}`,
-          method: 'email'
-        });
-      } catch (emailError) {
-        console.error(`❌ Erreur envoi email:`, emailError.message);
-        console.error('Response data:', emailError.response?.data);
-        console.error('Status:', emailError.response?.status);
-        res.status(500).json({ 
-          error: 'Erreur lors de l\'envoi de l\'email',
-          details: emailError.message,
-          response: emailError.response?.data
-        });
-      }
-
-    } else if (method === 'sms') {
-      console.log(`💬 SMS envoyé à ${contact.phone}`);
-      console.log(`Message: ${message}`);
-      
-      res.json({ 
-        success: true, 
-        message: `SMS enregistré pour ${contact.phone}`,
-        method: 'sms',
-        note: 'SMS non configuré - Veuillez configurer Twilio pour activer cette fonction'
-      });
-    } else {
-      res.status(400).json({ error: 'Méthode de contact invalide' });
-    }
-  } catch (error) {
-    console.error('❌ Erreur envoi réponse:', error);
-    res.status(500).json({ error: error.message || 'Erreur envoi réponse' });
-  }
-});
-
-// TESTIMONIALS ROUTES
-app.get('/api/testimonials', (req, res) => {
-  try {
-    const data = readData();
-    if (!data.testimonials) data.testimonials = [];
-    res.json(data.testimonials);
-  } catch (error) {
-    console.error('Erreur récupération testimonials:', error);
-    res.status(500).json({ error: error.message || 'Erreur récupération testimonials' });
-  }
-});
-
-app.post('/api/testimonials', upload.single('image'), (req, res) => {
-  try {
-    const data = readData();
-    if (!data.testimonials) data.testimonials = [];
-    
-    const ids = data.testimonials.map(t => t.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    const newId = maxId + 1;
-    
-    // Accepter l'image soit du FormData (req.file) soit du JSON (req.body.image - data URL)
     let imageUrl = null;
     if (req.file) {
-      // Convert file to base64 data URL
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
     } else if (req.body.image && req.body.image.startsWith('data:')) {
-      // Image is already a data URL
       imageUrl = req.body.image;
     }
+
+    const member = await db.createTeamMember({
+      name: req.body.name,
+      title: req.body.title,
+      bio: req.body.bio,
+      image: imageUrl,
+      email: req.body.email,
+      phone: req.body.phone,
+      specialties: req.body.specialties ? JSON.parse(req.body.specialties) : [],
+      certifications: req.body.certifications ? JSON.parse(req.body.certifications) : [],
+      linked_in: req.body.linked_in,
+      is_founder: req.body.is_founder === 'true' || req.body.is_founder === true
+    });
+
+    res.status(201).json(member);
+  } catch (error) {
+    console.error('Erreur création équipe:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/team/:id', upload.single('image'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
     
-    const newTestimonial = {
-      id: newId,
+    let imageUrl = req.body.image;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    }
+
+    const member = await db.updateTeamMember(id, {
+      name: req.body.name,
+      title: req.body.title,
+      bio: req.body.bio,
+      image: imageUrl,
+      email: req.body.email,
+      phone: req.body.phone,
+      specialties: req.body.specialties ? JSON.parse(req.body.specialties) : [],
+      certifications: req.body.certifications ? JSON.parse(req.body.certifications) : [],
+      linked_in: req.body.linked_in,
+      is_founder: req.body.is_founder === 'true' || req.body.is_founder === true
+    });
+
+    res.json(member);
+  } catch (error) {
+    console.error('Erreur modification équipe:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/team/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = await db.deleteTeamMember(id);
+    res.json({ success: true, id });
+  } catch (error) {
+    console.error('Erreur suppression équipe:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= TESTIMONIALS ROUTES =============
+
+app.get('/api/testimonials', async (req, res) => {
+  try {
+    const testimonials = await db.getTestimonials();
+    res.json(testimonials);
+  } catch (error) {
+    console.error('Erreur récupération testimonials:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/testimonials', upload.single('image'), async (req, res) => {
+  try {
+    let imageUrl = null;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    } else if (req.body.image && req.body.image.startsWith('data:')) {
+      imageUrl = req.body.image;
+    }
+
+    const testimonial = await db.createTestimonial({
       name: req.body.name,
       title: req.body.title,
       company: req.body.company,
       testimonial: req.body.testimonial,
       rating: parseInt(req.body.rating) || 5,
-      image: imageUrl,
-      createdAt: new Date().toISOString()
-    };
-    
-    console.log('📝 Création testimonial:', { id: newId, name: req.body.name, hasImage: !!imageUrl });
-    
-    data.testimonials.push(newTestimonial);
-    
-    if (writeData(data)) {
-      res.status(201).json(newTestimonial);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
+      image: imageUrl
+    });
+
+    res.status(201).json(testimonial);
   } catch (error) {
     console.error('Erreur création testimonial:', error);
-    res.status(500).json({ error: error.message || 'Erreur création testimonial' });
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/testimonials/:id', upload.single('image'), (req, res) => {
+app.put('/api/testimonials/:id', upload.single('image'), async (req, res) => {
   try {
-    const data = readData();
-    if (!data.testimonials) data.testimonials = [];
-    
     const id = parseInt(req.params.id);
-    const index = data.testimonials.findIndex(t => t.id === id);
     
-    if (index !== -1) {
-      const oldTestimonial = data.testimonials[index];
-      
-      // Déterminer l'image: fichier nouvellement uploadé, data URL du JSON, ou ancienne image
-      let imageUrl = oldTestimonial.image;
-      if (req.file) {
-        // Convert file to base64 data URL
-        const base64 = req.file.buffer.toString('base64');
-        imageUrl = `data:${req.file.mimetype};base64,${base64}`;
-      } else if (req.body.image && req.body.image.startsWith('data:')) {
-        // Image is already a data URL
-        imageUrl = req.body.image;
-      }
-      
-      const updatedTestimonial = {
-        ...oldTestimonial,
-        name: req.body.name || oldTestimonial.name,
-        title: req.body.title || oldTestimonial.title,
-        company: req.body.company || oldTestimonial.company,
-        testimonial: req.body.testimonial || oldTestimonial.testimonial,
-        rating: req.body.rating ? parseInt(req.body.rating) : oldTestimonial.rating,
-        image: imageUrl,
-        id
-      };
-      
-      console.log('📝 Modification testimonial:', { id, hasImage: !!imageUrl });
-      
-      data.testimonials[index] = updatedTestimonial;
-      
-      if (writeData(data)) {
-        res.json(updatedTestimonial);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Testimonial non trouvé' });
+    let imageUrl = req.body.image;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
     }
+
+    const testimonial = await db.updateTestimonial(id, {
+      name: req.body.name,
+      title: req.body.title,
+      company: req.body.company,
+      testimonial: req.body.testimonial,
+      rating: parseInt(req.body.rating) || 5,
+      image: imageUrl
+    });
+
+    res.json(testimonial);
   } catch (error) {
     console.error('Erreur modification testimonial:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification testimonial' });
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/testimonials/:id', (req, res) => {
+app.delete('/api/testimonials/:id', async (req, res) => {
   try {
-    const data = readData();
-    if (!data.testimonials) data.testimonials = [];
-    
     const id = parseInt(req.params.id);
-    const index = data.testimonials.findIndex(t => t.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.testimonials.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Testimonial non trouvé' });
-    }
+    await db.deleteTestimonial(id);
+    res.json({ success: true, id });
   } catch (error) {
     console.error('Erreur suppression testimonial:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression testimonial' });
+    res.status(500).json({ error: error.message });
   }
 });
 
-// News Routes
-app.get('/api/news', (req, res) => {
-  const data = readData();
-  if (!data.news) data.news = [];
-  res.json(data.news);
+// ============= NEWS ROUTES =============
+
+app.get('/api/news', async (req, res) => {
+  try {
+    const news = await db.getNews();
+    res.json(news);
+  } catch (error) {
+    console.error('Erreur récupération news:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/news', upload.single('image'), (req, res) => {
+app.post('/api/news', upload.single('image'), async (req, res) => {
   try {
-    const data = readData();
-    if (!data.news) data.news = [];
-    
-    const ids = data.news.map(n => n.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    
-    let imageUrl = '';
+    let imageUrl = null;
     if (req.file) {
-      // Convert file to base64 data URL
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
     } else if (req.body.image && req.body.image.startsWith('data:')) {
       imageUrl = req.body.image;
     }
-    
-    const newNews = {
-      id: maxId + 1,
+
+    const newsItem = await db.createNews({
       title: req.body.title,
       description: req.body.description,
       content: req.body.content || '',
       category: req.body.category || 'Actualités',
       image: imageUrl,
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString()
-    };
-    
-    data.news.push(newNews);
-    
-    if (writeData(data)) {
-      res.status(201).json(newNews);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
+      date: new Date().toISOString()
+    });
+
+    res.status(201).json(newsItem);
   } catch (error) {
-    console.error('Erreur création actualité:', error);
-    res.status(500).json({ error: error.message || 'Erreur création actualité' });
+    console.error('Erreur création news:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/news/:id', upload.single('image'), (req, res) => {
+app.put('/api/news/:id', upload.single('image'), async (req, res) => {
   try {
-    const data = readData();
-    if (!data.news) data.news = [];
-    
     const id = parseInt(req.params.id);
-    const index = data.news.findIndex(n => n.id === id);
     
-    if (index !== -1) {
-      const oldNews = data.news[index];
-      let imageUrl = oldNews.image;
-      
-      if (req.file) {
-        // Convert file to base64 data URL
-        const base64 = req.file.buffer.toString('base64');
-        imageUrl = `data:${req.file.mimetype};base64,${base64}`;
-      } else if (req.body.image && req.body.image.startsWith('data:')) {
-        imageUrl = req.body.image;
-      }
-      
-      const updatedNews = {
-        ...oldNews,
-        title: req.body.title,
-        description: req.body.description,
-        content: req.body.content || oldNews.content,
-        category: req.body.category || oldNews.category,
-        image: imageUrl,
-        updatedAt: new Date().toISOString()
-      };
-      
-      data.news[index] = updatedNews;
-      
-      if (writeData(data)) {
-        res.json(updatedNews);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Actualité non trouvée' });
+    let imageUrl = req.body.image;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
     }
+
+    const newsItem = await db.updateNews(id, {
+      title: req.body.title,
+      description: req.body.description,
+      content: req.body.content || '',
+      category: req.body.category || 'Actualités',
+      image: imageUrl
+    });
+
+    res.json(newsItem);
   } catch (error) {
-    console.error('Erreur modification actualité:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification actualité' });
+    console.error('Erreur modification news:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/news/:id', (req, res) => {
+app.delete('/api/news/:id', async (req, res) => {
   try {
-    const data = readData();
-    if (!data.news) data.news = [];
-    
     const id = parseInt(req.params.id);
-    const index = data.news.findIndex(n => n.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.news.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Actualité non trouvée' });
-    }
+    await db.deleteNews(id);
+    res.json({ success: true, id });
   } catch (error) {
-    console.error('Erreur suppression actualité:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression actualité' });
+    console.error('Erreur suppression news:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Jobs Routes
-app.get('/api/jobs', (req, res) => {
-  const data = readData();
-  if (!data.jobs) data.jobs = [];
-  res.json(data.jobs);
+// ============= SOLUTIONS ROUTES =============
+
+app.get('/api/solutions', async (req, res) => {
+  try {
+    const solutions = await db.getSolutions();
+    res.json(solutions);
+  } catch (error) {
+    console.error('Erreur récupération solutions:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/jobs', (req, res) => {
+app.post('/api/solutions', upload.single('image'), async (req, res) => {
   try {
-    const data = readData();
-    if (!data.jobs) data.jobs = [];
+    let imageUrl = null;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    } else if (req.body.image && req.body.image.startsWith('data:')) {
+      imageUrl = req.body.image;
+    }
+
+    const solution = await db.createSolution({
+      name: req.body.name,
+      description: req.body.description,
+      category: req.body.category,
+      image: imageUrl,
+      benefits: req.body.benefits ? JSON.parse(req.body.benefits) : [],
+      features: req.body.features ? JSON.parse(req.body.features) : []
+    });
+
+    res.status(201).json(solution);
+  } catch (error) {
+    console.error('Erreur création solution:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/solutions/:id', upload.single('image'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
     
-    const ids = data.jobs.map(j => j.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    
-    const newJob = {
-      id: maxId + 1,
+    let imageUrl = req.body.image;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    }
+
+    const solution = await db.updateSolution(id, {
+      name: req.body.name,
+      description: req.body.description,
+      category: req.body.category,
+      image: imageUrl,
+      benefits: req.body.benefits ? JSON.parse(req.body.benefits) : [],
+      features: req.body.features ? JSON.parse(req.body.features) : []
+    });
+
+    res.json(solution);
+  } catch (error) {
+    console.error('Erreur modification solution:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/solutions/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.deleteSolution(id);
+    res.json({ success: true, id });
+  } catch (error) {
+    console.error('Erreur suppression solution:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= JOBS ROUTES =============
+
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const jobs = await db.getJobs();
+    res.json(jobs);
+  } catch (error) {
+    console.error('Erreur récupération jobs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/jobs', async (req, res) => {
+  try {
+    const job = await db.createJob({
       title: req.body.title,
       description: req.body.description,
       location: req.body.location,
-      type: req.body.type || 'CDI',
-      department: req.body.department || '',
-      requirements: req.body.requirements || '',
-      salaryRange: req.body.salaryRange || '',
-      createdAt: new Date().toISOString()
-    };
-    
-    data.jobs.push(newJob);
-    
-    if (writeData(data)) {
-      res.status(201).json(newJob);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
+      type: req.body.type,
+      department: req.body.department,
+      requirements: req.body.requirements,
+      salary_range: req.body.salary_range
+    });
+
+    res.status(201).json(job);
   } catch (error) {
-    console.error('Erreur création offre:', error);
-    res.status(500).json({ error: error.message || 'Erreur création offre' });
+    console.error('Erreur création job:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/jobs/:id', (req, res) => {
+app.put('/api/jobs/:id', async (req, res) => {
   try {
-    const data = readData();
-    if (!data.jobs) data.jobs = [];
-    
     const id = parseInt(req.params.id);
-    const index = data.jobs.findIndex(j => j.id === id);
-    
-    if (index !== -1) {
-      const oldJob = data.jobs[index];
-      const updatedJob = {
-        ...oldJob,
-        title: req.body.title || oldJob.title,
-        description: req.body.description || oldJob.description,
-        location: req.body.location || oldJob.location,
-        type: req.body.type || oldJob.type,
-        department: req.body.department || oldJob.department,
-        requirements: req.body.requirements || oldJob.requirements,
-        salaryRange: req.body.salaryRange || oldJob.salaryRange,
-        updatedAt: new Date().toISOString()
-      };
-      
-      data.jobs[index] = updatedJob;
-      
-      if (writeData(data)) {
-        res.json(updatedJob);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Offre non trouvée' });
-    }
+    const job = await db.updateJob(id, {
+      title: req.body.title,
+      description: req.body.description,
+      location: req.body.location,
+      type: req.body.type,
+      department: req.body.department,
+      requirements: req.body.requirements,
+      salary_range: req.body.salary_range
+    });
+
+    res.json(job);
   } catch (error) {
-    console.error('Erreur modification offre:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification offre' });
+    console.error('Erreur modification job:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/jobs/:id', (req, res) => {
+app.delete('/api/jobs/:id', async (req, res) => {
   try {
-    const data = readData();
-    if (!data.jobs) data.jobs = [];
-    
     const id = parseInt(req.params.id);
-    const index = data.jobs.findIndex(j => j.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.jobs.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Offre non trouvée' });
-    }
+    await db.deleteJob(id);
+    res.json({ success: true, id });
   } catch (error) {
-    console.error('Erreur suppression offre:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression offre' });
+    console.error('Erreur suppression job:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Applications Routes
-app.get('/api/applications', (req, res) => {
-  const data = readData();
-  if (!data.applications) data.applications = [];
-  res.json(data.applications);
+// ============= APPLICATIONS ROUTES =============
+
+app.get('/api/applications', async (req, res) => {
+  try {
+    const applications = await db.getApplications();
+    res.json(applications);
+  } catch (error) {
+    console.error('Erreur récupération applications:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/applications', upload.single('resume'), (req, res) => {
+app.post('/api/applications', upload.single('resume'), async (req, res) => {
   try {
-    const data = readData();
-    if (!data.applications) data.applications = [];
-    
-    const ids = data.applications.map(a => a.id || 0);
-    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
-    
-    let resumeUrl = '';
+    let resumeUrl = null;
     if (req.file) {
-      // Convert file to base64 data URL
       const base64 = req.file.buffer.toString('base64');
       resumeUrl = `data:${req.file.mimetype};base64,${base64}`;
     } else if (req.body.resume && req.body.resume.startsWith('data:')) {
       resumeUrl = req.body.resume;
     }
-    
-    const newApplication = {
-      id: maxId + 1,
-      jobId: parseInt(req.body.jobId),
-      jobTitle: req.body.jobTitle,
-      fullName: req.body.fullName,
+
+    const application = await db.createApplication({
+      job_id: parseInt(req.body.job_id) || null,
+      job_title: req.body.job_title,
+      full_name: req.body.full_name,
       email: req.body.email,
       phone: req.body.phone,
-      linkedin: req.body.linkedin || '',
-      coverLetter: req.body.coverLetter,
-      resume: resumeUrl,
-      status: 'Nouveau',
-      appliedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString()
-    };
-    
-    data.applications.push(newApplication);
-    
-    if (writeData(data)) {
-      console.log('📝 Nouvelle candidature:', { 
-        id: newApplication.id,
-        candidat: newApplication.fullName,
-        poste: newApplication.jobTitle,
-        email: newApplication.email
-      });
-      res.status(201).json(newApplication);
-    } else {
-      res.status(500).json({ error: 'Erreur écriture fichier' });
-    }
+      linkedin: req.body.linkedin,
+      cover_letter: req.body.cover_letter,
+      resume: resumeUrl
+    });
+
+    res.status(201).json(application);
   } catch (error) {
-    console.error('Erreur création candidature:', error);
-    res.status(500).json({ error: error.message || 'Erreur création candidature' });
+    console.error('Erreur création application:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/applications/:id', (req, res) => {
+app.delete('/api/applications/:id', async (req, res) => {
   try {
-    const data = readData();
-    if (!data.applications) data.applications = [];
-    
     const id = parseInt(req.params.id);
-    const index = data.applications.findIndex(a => a.id === id);
-    
-    if (index !== -1) {
-      const oldApp = data.applications[index];
-      const updatedApp = {
-        ...oldApp,
-        status: req.body.status || oldApp.status,
-        notes: req.body.notes || oldApp.notes,
-        updatedAt: new Date().toISOString()
-      };
-      
-      data.applications[index] = updatedApp;
-      
-      if (writeData(data)) {
-        res.json(updatedApp);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Candidature non trouvée' });
-    }
+    await db.deleteApplication(id);
+    res.json({ success: true, id });
   } catch (error) {
-    console.error('Erreur modification candidature:', error);
-    res.status(500).json({ error: error.message || 'Erreur modification candidature' });
+    console.error('Erreur suppression application:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/applications/:id', (req, res) => {
+// ============= CONTACTS ROUTES =============
+
+app.get('/api/contacts', async (req, res) => {
   try {
-    const data = readData();
-    if (!data.applications) data.applications = [];
-    
-    const id = parseInt(req.params.id);
-    const index = data.applications.findIndex(a => a.id === id);
-    
-    if (index !== -1) {
-      const deleted = data.applications.splice(index, 1);
-      
-      if (writeData(data)) {
-        res.json(deleted[0]);
-      } else {
-        res.status(500).json({ error: 'Erreur écriture fichier' });
-      }
-    } else {
-      res.status(404).json({ error: 'Candidature non trouvée' });
-    }
+    const contacts = await db.getContacts();
+    res.json(contacts);
   } catch (error) {
-    console.error('Erreur suppression candidature:', error);
-    res.status(500).json({ error: error.message || 'Erreur suppression candidature' });
+    console.error('Erreur récupération contacts:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Sync Route
-app.post('/api/sync', (req, res) => {
-  const data = readData();
-  res.json({ 
-    status: 'success',
-    message: 'Données synchronisées',
-    timestamp: new Date().toISOString(),
-    data: data
-  });
+app.post('/api/contacts', async (req, res) => {
+  try {
+    const contact = await db.createContact({
+      full_name: req.body.full_name || req.body.fullName,
+      email: req.body.email,
+      phone: req.body.phone,
+      subject: req.body.subject,
+      message: req.body.message
+    });
+
+    res.status(201).json(contact);
+  } catch (error) {
+    console.error('Erreur création contact:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get('/api/sync/status', (req, res) => {
-  const data = readData();
-  res.json({
-    status: 'online',
-    lastSync: new Date().toISOString(),
-    dataCount: {
-      services: data.services?.length || 0,
-      solutions: data.solutions?.length || 0,
-      contacts: data.contacts?.length || 0,
-      testimonials: data.testimonials?.length || 0,
-      team: data.team?.length || 0
-    }
-  });
+app.put('/api/contacts/:id/reply', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const contact = await db.replyContact(id, {
+      reply_method: req.body.reply_method,
+      reply_message: req.body.reply_message
+    });
+
+    res.json(contact);
+  } catch (error) {
+    console.error('Erreur réponse contact:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Start server
+app.delete('/api/contacts/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.deleteContact(id);
+    res.json({ success: true, id });
+  } catch (error) {
+    console.error('Erreur suppression contact:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= SETTINGS ROUTES =============
+
+app.get('/api/settings', async (req, res) => {
+  try {
+    const settings = await db.getSettings();
+    res.json(settings || {});
+  } catch (error) {
+    console.error('Erreur récupération settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/settings', async (req, res) => {
+  try {
+    const settings = await db.updateSettings({
+      site_title: req.body.site_title || req.body.siteTitle,
+      slogan: req.body.slogan,
+      tagline: req.body.tagline,
+      email: req.body.email,
+      phone: req.body.phone,
+      address: req.body.address,
+      facebook: req.body.facebook,
+      twitter: req.body.twitter,
+      linkedin: req.body.linkedin,
+      instagram: req.body.instagram,
+      primary_color: req.body.primary_color || req.body.primaryColor,
+      description: req.body.description,
+      business_hours: req.body.business_hours || req.body.businessHours,
+      maintenance_mode: req.body.maintenance_mode || req.body.maintenanceMode
+    });
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Erreur modification settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= SERVICES ROUTES =============
+
+app.get('/api/services', async (req, res) => {
+  try {
+    const services = await db.getServices();
+    res.json(services);
+  } catch (error) {
+    console.error('Erreur récupération services:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/services', async (req, res) => {
+  try {
+    const service = await db.createService({
+      name: req.body.name,
+      description: req.body.description,
+      price: req.body.price,
+      category: req.body.category
+    });
+
+    res.status(201).json(service);
+  } catch (error) {
+    console.error('Erreur création service:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/services/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const service = await db.updateService(id, {
+      name: req.body.name,
+      description: req.body.description,
+      price: req.body.price,
+      category: req.body.category
+    });
+
+    res.json(service);
+  } catch (error) {
+    console.error('Erreur modification service:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/services/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.deleteService(id);
+    res.json({ success: true, id });
+  } catch (error) {
+    console.error('Erreur suppression service:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= 404 HANDLER =============
+
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// ============= START SERVER =============
+
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`API Health: http://localhost:${PORT}/api/health`);
+  console.log(`\n🚀 Backend server running on port ${PORT}`);
+  console.log(`📊 Database: PostgreSQL (Vercel Postgres)`);
+  console.log(`🔗 API: http://localhost:${PORT}/api`);
+  console.log(`✅ Ready for connections\n`);
 });
+
+export default app;
