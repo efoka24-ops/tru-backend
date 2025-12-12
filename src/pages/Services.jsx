@@ -90,7 +90,7 @@ export default function Services() {
                       <div className="h-64 bg-gradient-to-br from-slate-200 to-slate-300 overflow-hidden relative">
                         <img 
                           src={
-                            service.image.startsWith('http')
+                            service.image.startsWith('http') || service.image.startsWith('data:')
                               ? service.image
                               : service.image.startsWith('/uploads')
                                 ? apiService.getImageUrl(service.image)

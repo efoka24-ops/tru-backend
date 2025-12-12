@@ -90,7 +90,7 @@ export default function Solutions() {
                       <div className="h-64 bg-gradient-to-br from-emerald-200 to-emerald-300 overflow-hidden relative">
                         <img 
                           src={
-                            solution.image.startsWith('http')
+                            solution.image.startsWith('http') || solution.image.startsWith('data:')
                               ? solution.image
                               : solution.image.startsWith('/uploads')
                                 ? apiService.getImageUrl(solution.image)

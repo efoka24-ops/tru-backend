@@ -4,6 +4,20 @@ import { Code, Users, Monitor, Database, GraduationCap, Globe } from 'lucide-rea
 import { team as defaultTeam } from '../data/content';
 import { apiService } from '../api/apiService';
 
+// Helper to parse specialties/certifications which may be JSON strings
+const parseArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 export default function Team() {
   const [teamData, setTeamData] = useState(defaultTeam);
   const [loading, setLoading] = useState(true);
@@ -102,10 +116,10 @@ export default function Team() {
                   <div className="grid md:grid-cols-2 gap-8 p-8 md:p-12">
                     <div className="flex items-center justify-center">
                       <div className="w-full max-w-xs rounded-2xl overflow-hidden shadow-lg bg-slate-200">
-                        {member.image ? (
+                        {member.image && typeof member.image === 'string' ? (
                           <img 
                             src={
-                              member.image.startsWith('http') 
+                              member.image.startsWith('http') || member.image.startsWith('data:')
                                 ? member.image 
                                 : member.image.startsWith('/uploads')
                                   ? apiService.getImageUrl(member.image)
@@ -113,7 +127,10 @@ export default function Team() {
                             }
                             alt={member.name}
                             className="w-full h-full object-cover aspect-square"
-                            onError={(e) => e.target.src = '/placeholder.svg'}
+                            onError={(e) => {
+                              console.error('Image load error for', member.name);
+                              e.target.src = '/placeholder.svg';
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full aspect-square flex items-center justify-center bg-slate-300 text-slate-500 text-4xl">?</div>
@@ -127,7 +144,7 @@ export default function Team() {
                       <div>
                         <p className="text-sm font-bold text-slate-900 mb-3">Spécialités:</p>
                         <div className="flex flex-wrap gap-2">
-                          {member.specialties.map((spec, i) => (
+                          {parseArray(member.specialties).map((spec, i) => (
                             <span key={i} className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
                               {spec}
                             </span>
@@ -172,10 +189,10 @@ export default function Team() {
                   className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-500"
                 >
                   <div className="w-full h-56 overflow-hidden bg-slate-200">
-                    {member.image ? (
+                    {member.image && typeof member.image === 'string' ? (
                       <img 
                         src={
-                          member.image.startsWith('http') 
+                          member.image.startsWith('http') || member.image.startsWith('data:')
                             ? member.image 
                             : member.image.startsWith('/uploads')
                               ? apiService.getImageUrl(member.image)
@@ -183,7 +200,10 @@ export default function Team() {
                         }
                         alt={member.name}
                         className="w-full h-full object-cover"
-                        onError={(e) => e.target.src = '/placeholder.svg'}
+                        onError={(e) => {
+                          console.error('Image load error for', member.name);
+                          e.target.src = '/placeholder.svg';
+                        }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-slate-300 text-slate-500 text-3xl">?</div>
@@ -194,7 +214,7 @@ export default function Team() {
                     <p className="text-green-600 font-semibold mb-3">{member.title}</p>
                     <p className="text-slate-600 text-sm mb-4">{member.bio}</p>
                     <div className="flex flex-wrap gap-1">
-                      {member.specialties.map((spec, i) => (
+                      {parseArray(member.specialties).map((spec, i) => (
                         <span key={i} className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
                           {spec}
                         </span>

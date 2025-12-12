@@ -129,10 +129,19 @@ npm run preview
 
 Les fichiers compilés seront dans le dossier `dist/`
 
+### 📖 Guides de déploiement complets
+- **[VERCEL_QUICK_START.md](./VERCEL_QUICK_START.md)** - Déployer rapidement sur Vercel
+- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Guide détaillé avec toutes les options
+
 ### Déployer sur
+- **Vercel** ⭐ Recommandé - Optimisé pour React/Vite
+  - Intégration GitHub automatique
+  - Previews sur chaque PR
+  - Serverless functions
+  - PostgreSQL intégré
+  
 - **Netlify** - Connexion simple depuis GitHub
-- **Vercel** - Optimisé pour les apps React
-- **GitHub Pages** - Gratuit et facile
+- **GitHub Pages** - Gratuit et facile (static sites)
 - Votre propre serveur avec nginx/Apache
 
 ## 📱 Responsive Design

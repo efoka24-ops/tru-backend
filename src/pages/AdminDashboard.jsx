@@ -2,6 +2,20 @@
 import { Plus, Edit2, Trash2, X, Check, AlertCircle, Save, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Helper to parse specialties/certifications which may be JSON strings
+const parseArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 //const API_BASE = 'http://localhost:5001/api';
 const API_BASE = 'https://tru-backend-five.vercel.app/';
 
@@ -333,11 +347,11 @@ export default function AdminTeam() {
                     <p className="text-slate-300 text-sm mb-4 line-clamp-2">{member.bio}</p>
 
                     {/* SPECIALTIES */}
-                    {member.specialties && member.specialties.length > 0 && (
+                    {parseArray(member.specialties).length > 0 && (
                       <div className="mb-4">
                         <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Spécialités</p>
                         <div className="flex flex-wrap gap-2">
-                          {member.specialties.map((spec, i) => (
+                          {parseArray(member.specialties).map((spec, i) => (
                             <span key={i} className="inline-block bg-green-600/20 text-green-300 text-xs px-2 py-1 rounded border border-green-500/50">
                               {spec}
                             </span>
@@ -517,7 +531,7 @@ export default function AdminTeam() {
                     </motion.button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {formData.specialties.map((spec, i) => (
+                    {parseArray(formData.specialties).map((spec, i) => (
                       <motion.div
                         key={i}
                         initial={{ scale: 0.8, opacity: 0 }}

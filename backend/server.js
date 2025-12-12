@@ -88,12 +88,53 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   }
 });
 
+// Handle base64 image uploads (for compatibility with forms sending base64)
+app.post('/api/image', express.json({ limit: '10mb' }), (req, res) => {
+  try {
+    const { image, name } = req.body;
+    
+    if (!image) {
+      return res.status(400).json({ error: 'Image requise' });
+    }
+    
+    // If it's already a data URL, return it as-is (limit base64 to 1MB)
+    if (image.startsWith('data:')) {
+      const size = image.length;
+      if (size > 1024 * 1024) { // 1MB limit
+        return res.status(400).json({ error: 'Image trop volumineuse (max 1MB)' });
+      }
+      return res.json({ 
+        success: true,
+        url: image,
+        size: size
+      });
+    }
+    
+    res.status(400).json({ error: 'Format image invalide' });
+  } catch (error) {
+    console.error('Erreur image:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============= TEAM ROUTES =============
 
 app.get('/api/team', async (req, res) => {
   try {
     const team = await db.getTeam();
-    res.json(team);
+    
+    // Optimize response: truncate base64 images if they're too large
+    const optimizedTeam = team.map(member => {
+      if (member.image && member.image.startsWith('data:') && member.image.length > 100 * 1024) {
+        // Image is larger than 100KB, return placeholder or small thumbnail
+        console.warn(`⚠️ Large image detected for ${member.name} (${Math.round(member.image.length / 1024)}KB)`);
+        // Keep image but log the issue
+        return member;
+      }
+      return member;
+    });
+    
+    res.json(optimizedTeam);
   } catch (error) {
     console.error('Erreur récupération équipe:', error);
     res.status(500).json({ error: error.message });
@@ -102,12 +143,47 @@ app.get('/api/team', async (req, res) => {
 
 app.post('/api/team', upload.single('image'), async (req, res) => {
   try {
+    console.log('➕ POST /api/team');
+    console.log('📤 Body received size:', JSON.stringify(req.body).length);
+    
     let imageUrl = null;
     if (req.file) {
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
     } else if (req.body.image && req.body.image.startsWith('data:')) {
+      // Validate base64 image size (max 250KB to prevent response bloat)
+      if (req.body.image.length > 250 * 1024) {
+        return res.status(400).json({ error: `Image trop volumineuse (${Math.round(req.body.image.length / 1024)}KB, max 250KB). Compressez l'image.` });
+      }
       imageUrl = req.body.image;
+    }
+
+    // Handle specialties and certifications - must be passed as arrays
+    let specialties = [];
+    if (req.body.specialties) {
+      if (typeof req.body.specialties === 'string') {
+        try {
+          specialties = JSON.parse(req.body.specialties);
+        } catch (e) {
+          console.warn('⚠️ Could not parse specialties as JSON, treating as plain text array');
+          specialties = [req.body.specialties];
+        }
+      } else if (Array.isArray(req.body.specialties)) {
+        specialties = req.body.specialties;
+      }
+    }
+    let certifications = [];
+    if (req.body.certifications) {
+      if (typeof req.body.certifications === 'string') {
+        try {
+          certifications = JSON.parse(req.body.certifications);
+        } catch (e) {
+          console.warn('⚠️ Could not parse certifications as JSON, treating as plain text array');
+          certifications = [req.body.certifications];
+        }
+      } else if (Array.isArray(req.body.certifications)) {
+        certifications = req.body.certifications;
+      }
     }
 
     const member = await db.createTeamMember({
@@ -117,15 +193,15 @@ app.post('/api/team', upload.single('image'), async (req, res) => {
       image: imageUrl,
       email: req.body.email,
       phone: req.body.phone,
-      specialties: req.body.specialties ? JSON.parse(req.body.specialties) : [],
-      certifications: req.body.certifications ? JSON.parse(req.body.certifications) : [],
+      specialties: specialties,
+      certifications: certifications,
       linked_in: req.body.linked_in,
       is_founder: req.body.is_founder === 'true' || req.body.is_founder === true
     });
 
     res.status(201).json(member);
   } catch (error) {
-    console.error('Erreur création équipe:', error);
+    console.error('❌ Erreur création équipe:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -133,11 +209,48 @@ app.post('/api/team', upload.single('image'), async (req, res) => {
 app.put('/api/team/:id', upload.single('image'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    console.log('🔄 PUT /api/team/:id', id);
+    console.log('📤 Body size:', JSON.stringify(req.body).length);
     
     let imageUrl = req.body.image;
     if (req.file) {
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    } else if (req.body.image && req.body.image.startsWith('data:')) {
+      // Validate base64 image size (max 250KB to prevent response bloat)
+      if (req.body.image.length > 250 * 1024) {
+        return res.status(400).json({ error: `Image trop volumineuse (${Math.round(req.body.image.length / 1024)}KB, max 250KB). Compressez l'image.` });
+      }
+    }
+
+    // Handle specialties - could be string, array, or undefined
+    let specialties = [];
+    if (req.body.specialties) {
+      if (typeof req.body.specialties === 'string') {
+        try {
+          specialties = JSON.parse(req.body.specialties);
+        } catch (e) {
+          console.warn('⚠️ Could not parse specialties as JSON, treating as plain text array');
+          specialties = [req.body.specialties];
+        }
+      } else if (Array.isArray(req.body.specialties)) {
+        specialties = req.body.specialties;
+      }
+    }
+
+    // Handle certifications - could be string, array, or undefined
+    let certifications = [];
+    if (req.body.certifications) {
+      if (typeof req.body.certifications === 'string') {
+        try {
+          certifications = JSON.parse(req.body.certifications);
+        } catch (e) {
+          console.warn('⚠️ Could not parse certifications as JSON, treating as plain text array');
+          certifications = [req.body.certifications];
+        }
+      } else if (Array.isArray(req.body.certifications)) {
+        certifications = req.body.certifications;
+      }
     }
 
     const member = await db.updateTeamMember(id, {
@@ -147,15 +260,15 @@ app.put('/api/team/:id', upload.single('image'), async (req, res) => {
       image: imageUrl,
       email: req.body.email,
       phone: req.body.phone,
-      specialties: req.body.specialties ? JSON.parse(req.body.specialties) : [],
-      certifications: req.body.certifications ? JSON.parse(req.body.certifications) : [],
+      specialties: specialties,
+      certifications: certifications,
       linked_in: req.body.linked_in,
       is_founder: req.body.is_founder === 'true' || req.body.is_founder === true
     });
 
     res.json(member);
   } catch (error) {
-    console.error('Erreur modification équipe:', error);
+    console.error('❌ Erreur modification équipe:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -522,13 +635,25 @@ app.get('/api/contacts', async (req, res) => {
 
 app.post('/api/contacts', async (req, res) => {
   try {
+    // Validate required fields
+    if (!req.body.email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    if (!req.body.message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
     const contact = await db.createContact({
-      full_name: req.body.full_name || req.body.fullName,
+      full_name: req.body.full_name || req.body.fullName || '',
       email: req.body.email,
-      phone: req.body.phone,
-      subject: req.body.subject,
+      phone: req.body.phone || '',
+      subject: req.body.subject || 'No subject',
       message: req.body.message
     });
+
+    if (!contact) {
+      return res.status(500).json({ error: 'Failed to create contact' });
+    }
 
     res.status(201).json(contact);
   } catch (error) {

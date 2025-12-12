@@ -1,0 +1,28 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "POSTGRES_URL": "@postgres_url",
+    "POSTGRES_PRISMA_URL": "@postgres_prisma_url",
+    "POSTGRES_URL_NO_SSL": "@postgres_url_no_ssl",
+    "POSTGRES_USER": "@postgres_user",
+    "POSTGRES_PASSWORD": "@postgres_password",
+    "POSTGRES_HOST": "@postgres_host",
+    "POSTGRES_PORT": "@postgres_port",
+    "POSTGRES_DATABASE": "@postgres_database"
+  },
+  "functions": {
+    "backend/server.js": {
+      "runtime": "nodejs18.x",
+      "memory": 1024
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/server.js"
+    }
+  ]
+}
