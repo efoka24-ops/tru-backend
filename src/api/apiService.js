@@ -3,7 +3,7 @@ const baseURL = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL
   : (import.meta.env.DEV 
     ? 'http://localhost:5000' 
-    : window.location.origin);
+    : 'https://tru-backend-o1zc.onrender.com');
 
 // Normalize URL - remove trailing slash
 const cleanURL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;

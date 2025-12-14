@@ -167,6 +167,22 @@
       "certifications": [],
       "is_founder": false,
       "linked_in": ""
+    },
+    {
+      "id": 6,
+      "name": "Test Member",
+      "title": "Developer",
+      "bio": "Test bio",
+      "image": null,
+      "email": "test@example.com",
+      "phone": "+237000000000",
+      "specialties": [
+        "React",
+        "Node.js"
+      ],
+      "certifications": [],
+      "linked_in": "",
+      "is_founder": false
     }
   ],
   "solutions": [
@@ -239,6 +255,16 @@
       "rating": 5,
       "image": "https://api.placeholder.com/150/150/4CAF50/FFFFFF?text=FOKA",
       "createdAt": "2025-12-09T14:03:12.532Z"
+    },
+    {
+      "id": 4,
+      "name": "Test User",
+      "title": "Manager",
+      "company": "Test Company",
+      "testimonial": "Tr�s bon service!",
+      "rating": 5,
+      "image": null,
+      "createdAt": "2025-12-14T08:23:52.311Z"
     }
   ],
   "jobs": [

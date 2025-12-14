@@ -3,7 +3,7 @@
  * Centralized API calls with environment-aware URLs
  */
 
-const baseURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const baseURL = import.meta.env.VITE_BACKEND_URL || 'https://tru-backend-o1zc.onrender.com';
 // Remove trailing slash if present
 const BACKEND_URL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
 

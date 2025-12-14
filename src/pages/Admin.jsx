@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Users, Briefcase, AlertCircle, CheckCircle, X, Plus, Edit2, Trash2, Save } from 'lucide-react';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = 'https://tru-backend-o1zc.onrender.com/api';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('settings');

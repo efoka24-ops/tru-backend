@@ -16,8 +16,7 @@ const parseArray = (value) => {
   return [];
 };
 
-//const API_BASE = 'http://localhost:5001/api';
-const API_BASE = 'https://tru-backend-five.vercel.app/';
+const API_BASE = 'https://tru-backend-o1zc.onrender.com/api';
 
 export default function AdminTeam() {
   // ==================== STATE ====================
