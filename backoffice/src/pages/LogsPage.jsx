@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Trash2, RefreshCw, Filter, ChevronDown } from 'lucide-react';
+import { Download, Trash2, RefreshCw, Filter, ChevronDown, Lightbulb, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { logger } from '@/services/logger';
+import { analyzeBugAndSuggestSolution, formatSolution } from '@/services/bugSolver';
 
 export default function LogsPage() {
   const [logs, setLogs] = useState([]);
@@ -260,29 +261,102 @@ export default function LogsPage() {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="border-t px-4 py-3 bg-white"
+                      className="border-t px-4 py-3 bg-white space-y-4"
                     >
+                      {/* Données du log */}
                       {log.data && (
-                        <div className="mb-4">
-                          <h4 className="font-semibold text-sm mb-2 text-slate-700">Détails:</h4>
+                        <div>
+                          <h4 className="font-semibold text-sm mb-2 text-slate-700">📋 Détails:</h4>
                           <pre className="bg-slate-50 p-3 rounded text-xs overflow-auto max-h-48 text-slate-700">
                             {JSON.stringify(log.data, null, 2)}
                           </pre>
                         </div>
                       )}
 
+                      {/* Informations techniques */}
                       <div className="space-y-1 text-xs text-slate-600">
                         {log.url && (
                           <div>
-                            <span className="font-semibold">URL:</span> {log.url}
+                            <span className="font-semibold">🌐 URL:</span> {log.url}
                           </div>
                         )}
                         {log.userAgent && (
                           <div>
-                            <span className="font-semibold">User-Agent:</span> {log.userAgent}
+                            <span className="font-semibold">💻 User-Agent:</span> {log.userAgent}
                           </div>
                         )}
                       </div>
+
+                      {/* Suggestions de correction */}
+                      {(() => {
+                        const bugAnalysis = analyzeBugAndSuggestSolution(log);
+                        if (!bugAnalysis) return null;
+
+                        return (
+                          <div className="border-t pt-4 mt-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Lightbulb className="w-5 h-5 text-amber-600" />
+                              <h4 className="font-semibold text-slate-700">💡 Solutions suggérées</h4>
+                            </div>
+
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                              <p className="text-sm font-medium text-amber-900">
+                                🔍 Bug détecté: <span className="font-bold">{bugAnalysis.bugType}</span>
+                              </p>
+                            </div>
+
+                            <div className="space-y-3">
+                              {bugAnalysis.solutions.map((solution, solIndex) => (
+                                <motion.div
+                                  key={solIndex}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: solIndex * 0.1 }}
+                                  className={`border-l-4 ${
+                                    solution.priority === 'HIGH'
+                                      ? 'border-red-500 bg-red-50'
+                                      : solution.priority === 'MEDIUM'
+                                      ? 'border-yellow-500 bg-yellow-50'
+                                      : 'border-blue-500 bg-blue-50'
+                                  } p-3 rounded`}
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="font-semibold text-slate-900">
+                                      {solution.title}
+                                    </div>
+                                    <span
+                                      className={`text-xs font-bold px-2 py-1 rounded ${
+                                        solution.priority === 'HIGH'
+                                          ? 'bg-red-200 text-red-900'
+                                          : solution.priority === 'MEDIUM'
+                                          ? 'bg-yellow-200 text-yellow-900'
+                                          : 'bg-blue-200 text-blue-900'
+                                      }`}
+                                    >
+                                      {solution.priority}
+                                    </span>
+                                  </div>
+
+                                  <p className="text-sm text-slate-700 mb-2">
+                                    {solution.description}
+                                  </p>
+
+                                  <div className="bg-white rounded p-2 text-xs space-y-1">
+                                    <p className="font-semibold text-slate-600">📝 Étapes:</p>
+                                    <ol className="list-decimal list-inside space-y-1">
+                                      {solution.steps.map((step, stepIndex) => (
+                                        <li key={stepIndex} className="text-slate-600">
+                                          {step}
+                                        </li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </motion.div>
                   )}
                 </AnimatePresence>
