@@ -254,13 +254,13 @@ export default function MemberAccountsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-            <User className="w-8 h-8" />
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <User className="w-6 h-6" />
             Member Accounts Management
-          </h1>
-          <p className="text-slate-400 mt-1">Create and manage member access accounts</p>
+          </h2>
+          <p className="text-slate-600 mt-1">Create and manage member access accounts</p>
         </div>
       </div>
 
@@ -288,63 +288,63 @@ export default function MemberAccountsPage() {
       </AnimatePresence>
 
       {/* Members Table */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-700/50 border-b border-slate-600">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-200">Name</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-200">Email</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-200">Account Status</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-200">Role</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-200">Last Login</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-slate-200">Actions</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Name</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Email</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Account Status</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Role</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Last Login</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-slate-900">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700">
+            <tbody className="divide-y divide-slate-200">
               {members.map((member) => (
                 <motion.tr
                   key={member.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="hover:bg-slate-700/50 transition-colors"
+                  className="hover:bg-slate-50 transition-colors"
                 >
-                  <td className="px-6 py-4 text-white font-medium">{member.name}</td>
+                  <td className="px-6 py-4 text-slate-900 font-medium">{member.name}</td>
                   <td className="px-6 py-4">
                     {member.account?.hasAccount ? (
-                      <div className="flex items-center gap-2 text-slate-300">
+                      <div className="flex items-center gap-2 text-slate-700">
                         <Mail className="w-4 h-4" />
                         {member.account.email}
                       </div>
                     ) : (
-                      <span className="text-slate-500">No account</span>
+                      <span className="text-slate-400">No account</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
                     {member.account?.hasAccount ? (
                       <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
                         member.account.status === 'active'
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'bg-yellow-500/20 text-yellow-400'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
                       }`}>
                         <span className="w-2 h-2 rounded-full bg-current"></span>
                         {member.account.status}
                       </span>
                     ) : (
-                      <span className="text-slate-500">-</span>
+                      <span className="text-slate-400">-</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
                     {member.account?.hasAccount ? (
-                      <span className="inline-flex items-center gap-2 text-slate-300">
+                      <span className="inline-flex items-center gap-2 text-slate-700">
                         <Shield className="w-4 h-4" />
                         {member.account.role}
                       </span>
                     ) : (
-                      <span className="text-slate-500">-</span>
+                      <span className="text-slate-400">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-slate-400 text-sm">
+                  <td className="px-6 py-4 text-slate-600 text-sm">
                     {member.account?.lastLogin ? (
                       new Date(member.account.lastLogin).toLocaleDateString('fr-FR')
                     ) : (
@@ -398,40 +398,40 @@ export default function MemberAccountsPage() {
 
       {/* Create Account Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700">
+        <DialogContent className="bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle className="text-white">Create Account for {selectedMember?.name}</DialogTitle>
+            <DialogTitle className="text-slate-900">Create Account for {selectedMember?.name}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
               <Input
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="member@trugroup.cm"
-                className="bg-slate-700 border-slate-600"
+                className="bg-white border-slate-300 text-slate-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Initial Password (Optional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Initial Password (Optional)</label>
               <Input
                 type="password"
                 value={formData.initialPassword}
                 onChange={(e) => setFormData(prev => ({ ...prev, initialPassword: e.target.value }))}
                 placeholder="Leave empty to require login code"
-                className="bg-slate-700 border-slate-600"
+                className="bg-white border-slate-300 text-slate-900"
               />
               <p className="text-slate-500 text-xs mt-1">If left empty, member will use login code</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Role</label>
               <select
                 value={formData.role}
                 onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="member">Member</option>
                 <option value="admin">Admin</option>
