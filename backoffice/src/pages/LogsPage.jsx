@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Trash2, RefreshCw, Filter, ChevronDown, Lightbulb, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Download, Trash2, RefreshCw, Filter, ChevronDown, Lightbulb, AlertCircle, CheckCircle2, Zap } from 'lucide-react';
 import { logger } from '@/services/logger';
 import { analyzeBugAndSuggestSolution, formatSolution } from '@/services/bugSolver';
+import { autoFixer } from '@/services/autoFixer';
 
 export default function LogsPage() {
   const [logs, setLogs] = useState([]);
@@ -11,6 +12,8 @@ export default function LogsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedLog, setExpandedLog] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [appliedFixes, setAppliedFixes] = useState({});
+  const [fixLoading, setFixLoading] = useState(null);
 
   const LOG_LEVEL_COLORS = {
     DEBUG: 'bg-gray-100 text-gray-700 border-gray-300',
@@ -120,6 +123,27 @@ export default function LogsPage() {
       SUCCESS: '✅'
     };
     return icons[level] || '•';
+  };
+
+  const applySolution = async (solution, logId) => {
+    setFixLoading(logId);
+    try {
+      const result = await autoFixer.applySolution(solution);
+      setAppliedFixes(prev => ({
+        ...prev,
+        [logId]: result
+      }));
+    } catch (error) {
+      setAppliedFixes(prev => ({
+        ...prev,
+        [logId]: {
+          success: false,
+          message: `Erreur: ${error.message}`
+        }
+      }));
+    } finally {
+      setFixLoading(null);
+    }
   };
 
   return (
@@ -306,53 +330,120 @@ export default function LogsPage() {
                             </div>
 
                             <div className="space-y-3">
-                              {bugAnalysis.solutions.map((solution, solIndex) => (
-                                <motion.div
-                                  key={solIndex}
-                                  initial={{ opacity: 0, x: -10 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: solIndex * 0.1 }}
-                                  className={`border-l-4 ${
-                                    solution.priority === 'HIGH'
-                                      ? 'border-red-500 bg-red-50'
-                                      : solution.priority === 'MEDIUM'
-                                      ? 'border-yellow-500 bg-yellow-50'
-                                      : 'border-blue-500 bg-blue-50'
-                                  } p-3 rounded`}
-                                >
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="font-semibold text-slate-900">
-                                      {solution.title}
+                              {bugAnalysis.solutions.map((solution, solIndex) => {
+                                const fixKey = `${bugAnalysis.bugType}-${solIndex}`;
+                                const fixResult = appliedFixes[fixKey];
+                                const isApplying = fixLoading === fixKey;
+                                const canAutomate = autoFixer.canAutomate(solution);
+
+                                return (
+                                  <motion.div
+                                    key={solIndex}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: solIndex * 0.1 }}
+                                    className={`border-l-4 ${
+                                      fixResult?.success
+                                        ? 'border-green-500 bg-green-50'
+                                        : fixResult?.success === false
+                                        ? 'border-orange-500 bg-orange-50'
+                                        : solution.priority === 'HIGH'
+                                        ? 'border-red-500 bg-red-50'
+                                        : solution.priority === 'MEDIUM'
+                                        ? 'border-yellow-500 bg-yellow-50'
+                                        : 'border-blue-500 bg-blue-50'
+                                    } p-3 rounded`}
+                                  >
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="font-semibold text-slate-900">
+                                        {solution.title}
+                                      </div>
+                                      <span
+                                        className={`text-xs font-bold px-2 py-1 rounded ${
+                                          fixResult?.success
+                                            ? 'bg-green-200 text-green-900'
+                                            : fixResult?.success === false
+                                            ? 'bg-orange-200 text-orange-900'
+                                            : solution.priority === 'HIGH'
+                                            ? 'bg-red-200 text-red-900'
+                                            : solution.priority === 'MEDIUM'
+                                            ? 'bg-yellow-200 text-yellow-900'
+                                            : 'bg-blue-200 text-blue-900'
+                                        }`}
+                                      >
+                                        {fixResult?.success ? '✅ APPLIQUÉE' : fixResult?.success === false ? '⚠️ ERREUR' : solution.priority}
+                                      </span>
                                     </div>
-                                    <span
-                                      className={`text-xs font-bold px-2 py-1 rounded ${
-                                        solution.priority === 'HIGH'
-                                          ? 'bg-red-200 text-red-900'
-                                          : solution.priority === 'MEDIUM'
-                                          ? 'bg-yellow-200 text-yellow-900'
-                                          : 'bg-blue-200 text-blue-900'
-                                      }`}
-                                    >
-                                      {solution.priority}
-                                    </span>
-                                  </div>
 
-                                  <p className="text-sm text-slate-700 mb-2">
-                                    {solution.description}
-                                  </p>
+                                    <p className="text-sm text-slate-700 mb-2">
+                                      {solution.description}
+                                    </p>
 
-                                  <div className="bg-white rounded p-2 text-xs space-y-1">
-                                    <p className="font-semibold text-slate-600">📝 Étapes:</p>
-                                    <ol className="list-decimal list-inside space-y-1">
-                                      {solution.steps.map((step, stepIndex) => (
-                                        <li key={stepIndex} className="text-slate-600">
-                                          {step}
-                                        </li>
-                                      ))}
-                                    </ol>
-                                  </div>
-                                </motion.div>
-                              ))}
+                                    <div className="bg-white rounded p-2 text-xs space-y-1 mb-3">
+                                      <p className="font-semibold text-slate-600">📝 Étapes:</p>
+                                      <ol className="list-decimal list-inside space-y-1">
+                                        {solution.steps.map((step, stepIndex) => (
+                                          <li key={stepIndex} className="text-slate-600">
+                                            {step}
+                                          </li>
+                                        ))}
+                                      </ol>
+                                    </div>
+
+                                    {/* Résultat de l'application */}
+                                    {fixResult && (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className={`rounded p-2 text-xs mb-3 ${
+                                          fixResult.success
+                                            ? 'bg-green-100 border border-green-300 text-green-800'
+                                            : 'bg-orange-100 border border-orange-300 text-orange-800'
+                                        }`}
+                                      >
+                                        <p className="font-semibold mb-1">
+                                          {fixResult.success ? '✅ Succès!' : '⚠️ Erreur'}
+                                        </p>
+                                        <p className="whitespace-pre-wrap">{fixResult.message}</p>
+                                        {fixResult.duration && (
+                                          <p className="text-xs opacity-75 mt-1">Durée: {fixResult.duration}</p>
+                                        )}
+                                      </motion.div>
+                                    )}
+
+                                    {/* Bouton d'auto-correction */}
+                                    {canAutomate && !fixResult && (
+                                      <button
+                                        onClick={() => applySolution(solution, fixKey)}
+                                        disabled={isApplying}
+                                        className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded font-semibold text-sm transition-all ${
+                                          isApplying
+                                            ? 'bg-slate-300 text-slate-600 cursor-wait'
+                                            : 'bg-emerald-500 hover:bg-emerald-600 text-white hover:shadow-lg'
+                                        }`}
+                                      >
+                                        {isApplying ? (
+                                          <>
+                                            <motion.div
+                                              animate={{ rotate: 360 }}
+                                              transition={{ duration: 1, repeat: Infinity }}
+                                              className="w-4 h-4"
+                                            >
+                                              <Zap className="w-4 h-4" />
+                                            </motion.div>
+                                            Application en cours...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Zap className="w-4 h-4" />
+                                            Appliquer automatiquement
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+                                  </motion.div>
+                                );
+                              })}
                             </div>
                           </div>
                         );

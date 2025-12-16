@@ -169,8 +169,8 @@ app.post('/api/team', upload.single('image'), (req, res) => {
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
     } else if (req.body.image && req.body.image.startsWith('data:')) {
-      if (req.body.image.length > 250 * 1024) {
-        return res.status(400).json({ error: `Image trop volumineuse (${Math.round(req.body.image.length / 1024)}KB, max 250KB). Compressez l'image.` });
+      if (req.body.image.length > config.imageSizeLimit) {
+        return res.status(400).json({ error: `Image trop volumineuse (${Math.round(req.body.image.length / 1024)}KB, max ${Math.round(config.imageSizeLimit / 1024)}KB). Compressez l'image.` });
       }
       imageUrl = req.body.image;
     }
@@ -243,13 +243,10 @@ app.put('/api/team/:id', upload.single('image'), (req, res) => {
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
     } else if (req.body.image && req.body.image.startsWith('data:')) {
-      if (req.body.image.length > 1024 * 1024) { // 1MB limit
-        console.warn('⚠️ Image too large:', req.body.image.length, 'bytes');
-        // Don't fail, just skip the image update
-        imageUrl = data.team[memberIndex].image;
-      } else {
-        imageUrl = req.body.image;
+      if (req.body.image.length > config.imageSizeLimit) {
+        return res.status(400).json({ error: `Image trop volumineuse (${Math.round(req.body.image.length / 1024)}KB, max ${Math.round(config.imageSizeLimit / 1024)}KB). Compressez l'image.` });
       }
+      imageUrl = req.body.image;
     }
 
     let specialties = data.team[memberIndex].specialties || [];
@@ -938,6 +935,53 @@ app.delete('/api/services/:id', (req, res) => {
 });
 
 // ============= LOGS ROUTES =============
+
+// Configuration dynamique
+const config = {
+  imageSizeLimit: 250 * 1024 // 250KB par défaut
+};
+
+// POST /api/config/increase-image-limit - Augmenter la limite d'image
+app.post('/api/config/increase-image-limit', (req, res) => {
+  try {
+    const { newLimit } = req.body;
+    
+    if (!newLimit || newLimit < 100 * 1024) {
+      return res.status(400).json({ error: 'La limite doit être au moins 100KB' });
+    }
+
+    if (newLimit > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'La limite ne peut pas dépasser 10MB' });
+    }
+
+    const oldLimit = config.imageSizeLimit;
+    config.imageSizeLimit = newLimit;
+
+    console.log(`⚙️ Limite d'image augmentée: ${oldLimit / 1024}KB → ${newLimit / 1024}KB`);
+
+    res.json({
+      success: true,
+      message: `Limite d'image augmentée à ${(newLimit / 1024).toFixed(0)}KB`,
+      oldLimit: `${(oldLimit / 1024).toFixed(0)}KB`,
+      newLimit: `${(newLimit / 1024).toFixed(0)}KB`
+    });
+  } catch (error) {
+    console.error('Erreur lors de la modification de la limite:', error);
+    res.status(500).json({ error: 'Impossible de modifier la limite' });
+  }
+});
+
+// GET /api/config - Obtenir la configuration actuelle
+app.get('/api/config', (req, res) => {
+  try {
+    res.json({
+      imageSizeLimit: `${(config.imageSizeLimit / 1024).toFixed(0)}KB`,
+      imageSizeLimitBytes: config.imageSizeLimit
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Impossible de récupérer la configuration' });
+  }
+});
 
 // Stockage des logs en mémoire (max 1000 logs)
 const logsStore = [];
