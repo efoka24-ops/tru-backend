@@ -5,6 +5,9 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { hashPassword, comparePassword, generateJWT, verifyJWT } from './utils/passwordUtils.js';
+import { generateLoginCode, getExpiryDate, isCodeExpired } from './utils/codeGenerator.js';
+import { verifyToken, requireAdmin, requireMember, requireOwnProfile } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -145,6 +148,565 @@ app.post('/api/image', express.json({ limit: '10mb' }), (req, res) => {
   } catch (error) {
     console.error('Erreur image:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= AUTHENTICATION ROUTES =============
+
+// 1. LOGIN avec email + password
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ 
+        error: 'Email and password required',
+        code: 'INVALID_INPUT'
+      });
+    }
+    
+    const data = readData();
+    const account = data.memberAccounts?.find(a => a.email === email);
+    
+    if (!account) {
+      return res.status(401).json({ 
+        error: 'Invalid email or password',
+        code: 'INVALID_CREDENTIALS'
+      });
+    }
+    
+    if (account.status !== 'active') {
+      return res.status(403).json({ 
+        error: 'Account is inactive',
+        code: 'ACCOUNT_INACTIVE'
+      });
+    }
+    
+    // Comparer le password
+    const validPassword = comparePassword(password, account.passwordHash);
+    
+    if (!validPassword) {
+      return res.status(401).json({ 
+        error: 'Invalid email or password',
+        code: 'INVALID_CREDENTIALS'
+      });
+    }
+    
+    // Générer JWT
+    const token = generateJWT({
+      memberId: account.memberId,
+      email: account.email,
+      role: account.role
+    });
+    
+    // Mettre à jour lastLogin
+    account.lastLogin = new Date().toISOString();
+    writeData(data);
+    
+    // Récupérer les infos du membre
+    const member = data.team?.find(t => t.id === account.memberId);
+    
+    res.json({
+      success: true,
+      token: token,
+      member: member ? {
+        id: member.id,
+        name: member.name,
+        title: member.title,
+        email: member.email,
+        image: member.image
+      } : null,
+      account: {
+        email: account.email,
+        role: account.role,
+        createdAt: account.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// 2. LOGIN avec code temporaire (première connexion)
+app.post('/api/auth/login-code', (req, res) => {
+  try {
+    const { loginCode, newPassword, confirmPassword } = req.body;
+    
+    if (!loginCode || !newPassword || !confirmPassword) {
+      return res.status(400).json({ 
+        error: 'Login code and passwords required',
+        code: 'INVALID_INPUT'
+      });
+    }
+    
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ 
+        error: 'Passwords do not match',
+        code: 'PASSWORD_MISMATCH'
+      });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        error: 'Password must be at least 6 characters',
+        code: 'PASSWORD_TOO_SHORT'
+      });
+    }
+    
+    const data = readData();
+    const account = data.memberAccounts?.find(a => a.loginCode === loginCode);
+    
+    if (!account) {
+      return res.status(401).json({ 
+        error: 'Invalid login code',
+        code: 'INVALID_CODE'
+      });
+    }
+    
+    // Vérifier expiration
+    if (isCodeExpired(account.loginCodeExpiry)) {
+      return res.status(401).json({ 
+        error: 'Login code has expired',
+        code: 'CODE_EXPIRED'
+      });
+    }
+    
+    // Mettre à jour le mot de passe
+    account.passwordHash = hashPassword(newPassword);
+    account.loginCode = null;
+    account.loginCodeExpiry = null;
+    account.status = 'active';
+    account.lastLogin = new Date().toISOString();
+    writeData(data);
+    
+    // Générer JWT
+    const token = generateJWT({
+      memberId: account.memberId,
+      email: account.email,
+      role: account.role
+    });
+    
+    // Récupérer les infos du membre
+    const member = data.team?.find(t => t.id === account.memberId);
+    
+    res.json({
+      success: true,
+      message: 'First login successful, password created',
+      token: token,
+      member: member ? {
+        id: member.id,
+        name: member.name,
+        title: member.title,
+        email: member.email,
+        image: member.image
+      } : null
+    });
+  } catch (error) {
+    console.error('Login code error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// 3. VERIFY TOKEN - Vérifier que le JWT est valide
+app.post('/api/auth/verify-token', verifyToken, (req, res) => {
+  res.json({
+    success: true,
+    user: req.user
+  });
+});
+
+// 4. CHANGE PASSWORD - Changer le mot de passe
+app.post('/api/auth/change-password', verifyToken, (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const memberId = req.user.memberId;
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ error: 'All fields required' });
+    }
+    
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    const data = readData();
+    const account = data.memberAccounts?.find(a => a.memberId === memberId);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+    
+    // Vérifier le mot de passe actuel
+    if (!comparePassword(currentPassword, account.passwordHash)) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    
+    // Mettre à jour le mot de passe
+    account.passwordHash = hashPassword(newPassword);
+    account.updatedAt = new Date().toISOString();
+    writeData(data);
+    
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// ============= MEMBER PROFILE ROUTES =============
+
+// GET /api/members/:id - Récupérer profil public d'un membre
+app.get('/api/members/:id', (req, res) => {
+  try {
+    const memberId = parseInt(req.params.id);
+    const data = readData();
+    const member = data.team?.find(t => t.id === memberId);
+    
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    res.json({
+      success: true,
+      member: member
+    });
+  } catch (error) {
+    console.error('Get member error:', error);
+    res.status(500).json({ error: 'Failed to fetch member' });
+  }
+});
+
+// GET /api/members/:id/profile - Récupérer profil complet (authentifié)
+app.get('/api/members/:id/profile', verifyToken, requireOwnProfile, (req, res) => {
+  try {
+    const memberId = parseInt(req.params.id);
+    const data = readData();
+    const member = data.team?.find(t => t.id === memberId);
+    const account = data.memberAccounts?.find(a => a.memberId === memberId);
+    
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    res.json({
+      success: true,
+      member: {
+        ...member,
+        profile: account ? {
+          hasAccount: true,
+          email: account.email,
+          role: account.role,
+          createdAt: account.createdAt,
+          lastLogin: account.lastLogin
+        } : null
+      }
+    });
+  } catch (error) {
+    console.error('Get member profile error:', error);
+    res.status(500).json({ error: 'Failed to fetch member profile' });
+  }
+});
+
+// PUT /api/members/:id/profile - Modifier son profil
+app.put('/api/members/:id/profile', verifyToken, requireOwnProfile, (req, res) => {
+  try {
+    const memberId = parseInt(req.params.id);
+    const { name, title, bio, phone, linkedin, specialties, certifications } = req.body;
+    
+    const data = readData();
+    const member = data.team?.find(t => t.id === memberId);
+    
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    // Mettre à jour les champs autorisés
+    if (name !== undefined) member.name = name;
+    if (title !== undefined) member.title = title;
+    if (bio !== undefined) member.bio = bio;
+    if (phone !== undefined) member.phone = phone;
+    if (linkedin !== undefined) member.linked_in = linkedin;
+    if (specialties !== undefined) member.specialties = specialties;
+    if (certifications !== undefined) member.certifications = certifications;
+    
+    writeData(data);
+    
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      member: member
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// PUT /api/members/:id/photo - Télécharger/Modifier la photo du profil
+app.put('/api/members/:id/photo', verifyToken, requireOwnProfile, upload.single('photo'), (req, res) => {
+  try {
+    const memberId = parseInt(req.params.id);
+    
+    if (!req.file && !req.body.photoUrl) {
+      return res.status(400).json({ error: 'Photo required' });
+    }
+    
+    const data = readData();
+    const member = data.team?.find(t => t.id === memberId);
+    
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      member.image = `data:${req.file.mimetype};base64,${base64}`;
+    } else if (req.body.photoUrl) {
+      member.image = req.body.photoUrl;
+    }
+    
+    writeData(data);
+    
+    res.json({
+      success: true,
+      message: 'Photo updated successfully',
+      member: {
+        id: member.id,
+        image: member.image
+      }
+    });
+  } catch (error) {
+    console.error('Update photo error:', error);
+    res.status(500).json({ error: 'Failed to update photo' });
+  }
+});
+
+// ============= ADMIN - MEMBER ACCOUNTS ROUTES =============
+
+// GET /api/admin/members - Lister tous les membres avec statut de compte
+app.get('/api/admin/members', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const data = readData();
+    
+    const membersWithAccounts = data.team?.map(member => {
+      const account = data.memberAccounts?.find(a => a.memberId === member.id);
+      return {
+        ...member,
+        account: account ? {
+          id: account.id,
+          email: account.email,
+          status: account.status,
+          role: account.role,
+          hasAccount: true,
+          lastLogin: account.lastLogin,
+          createdAt: account.createdAt
+        } : {
+          hasAccount: false
+        }
+      };
+    }) || [];
+    
+    res.json({
+      success: true,
+      members: membersWithAccounts
+    });
+  } catch (error) {
+    console.error('Get members error:', error);
+    res.status(500).json({ error: 'Failed to fetch members' });
+  }
+});
+
+// POST /api/admin/members/:id/account - Créer un compte pour un membre
+app.post('/api/admin/members/:id/account', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const memberId = parseInt(req.params.id);
+    const { email, initialPassword, role = 'member' } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    const data = readData();
+    const member = data.team?.find(t => t.id === memberId);
+    
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    // Vérifier si un compte existe déjà
+    const existingAccount = data.memberAccounts?.find(a => a.memberId === memberId);
+    if (existingAccount) {
+      return res.status(400).json({ error: 'Account already exists for this member' });
+    }
+    
+    // Vérifier si l'email est déjà utilisé
+    const emailExists = data.memberAccounts?.find(a => a.email === email);
+    if (emailExists) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+    
+    // Créer le code de connexion
+    const loginCode = generateLoginCode();
+    
+    // Créer le compte
+    const newAccount = {
+      id: (data.memberAccounts?.length || 0) + 1,
+      memberId: memberId,
+      email: email,
+      passwordHash: initialPassword ? hashPassword(initialPassword) : null,
+      role: role,
+      status: initialPassword ? 'active' : 'pending',
+      loginCode: loginCode,
+      loginCodeExpiry: getExpiryDate(24).toISOString(),
+      twoFactorEnabled: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastLogin: null
+    };
+    
+    if (!data.memberAccounts) {
+      data.memberAccounts = [];
+    }
+    data.memberAccounts.push(newAccount);
+    
+    // Mettre à jour l'email du membre
+    member.email = email;
+    
+    writeData(data);
+    
+    res.json({
+      success: true,
+      message: 'Account created successfully',
+      account: {
+        id: newAccount.id,
+        email: newAccount.email,
+        role: newAccount.role,
+        status: newAccount.status,
+        loginCode: newAccount.loginCode,
+        loginCodeExpiry: newAccount.loginCodeExpiry
+      }
+    });
+  } catch (error) {
+    console.error('Create account error:', error);
+    res.status(500).json({ error: 'Failed to create account' });
+  }
+});
+
+// POST /api/admin/members/:id/login-code - Générer nouveau code de connexion
+app.post('/api/admin/members/:id/login-code', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const memberId = parseInt(req.params.id);
+    const data = readData();
+    const account = data.memberAccounts?.find(a => a.memberId === memberId);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+    
+    // Générer un nouveau code
+    const newLoginCode = generateLoginCode();
+    account.loginCode = newLoginCode;
+    account.loginCodeExpiry = getExpiryDate(24).toISOString();
+    account.updatedAt = new Date().toISOString();
+    
+    writeData(data);
+    
+    res.json({
+      success: true,
+      message: 'Login code generated successfully',
+      loginCode: newLoginCode,
+      expiresAt: account.loginCodeExpiry
+    });
+  } catch (error) {
+    console.error('Generate login code error:', error);
+    res.status(500).json({ error: 'Failed to generate login code' });
+  }
+});
+
+// PUT /api/admin/members/:id/account - Modifier le compte d'un membre
+app.put('/api/admin/members/:id/account', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const memberId = parseInt(req.params.id);
+    const { email, status, role } = req.body;
+    
+    const data = readData();
+    const account = data.memberAccounts?.find(a => a.memberId === memberId);
+    
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+    
+    // Mettre à jour les champs
+    if (email !== undefined && email !== account.email) {
+      const emailExists = data.memberAccounts?.find(a => a.email === email && a.id !== account.id);
+      if (emailExists) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+      account.email = email;
+    }
+    
+    if (status !== undefined && ['active', 'pending', 'inactive'].includes(status)) {
+      account.status = status;
+    }
+    
+    if (role !== undefined && ['admin', 'member', 'viewer'].includes(role)) {
+      account.role = role;
+    }
+    
+    account.updatedAt = new Date().toISOString();
+    writeData(data);
+    
+    res.json({
+      success: true,
+      message: 'Account updated successfully',
+      account: {
+        email: account.email,
+        status: account.status,
+        role: account.role,
+        updatedAt: account.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Update account error:', error);
+    res.status(500).json({ error: 'Failed to update account' });
+  }
+});
+
+// DELETE /api/admin/members/:id/account - Supprimer le compte d'un membre
+app.delete('/api/admin/members/:id/account', verifyToken, requireAdmin, (req, res) => {
+  try {
+    const memberId = parseInt(req.params.id);
+    const data = readData();
+    
+    const accountIndex = data.memberAccounts?.findIndex(a => a.memberId === memberId);
+    
+    if (accountIndex === -1) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+    
+    const removedAccount = data.memberAccounts[accountIndex];
+    data.memberAccounts.splice(accountIndex, 1);
+    
+    writeData(data);
+    
+    res.json({
+      success: true,
+      message: 'Account deleted successfully',
+      account: {
+        email: removedAccount.email
+      }
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
   }
 });
 

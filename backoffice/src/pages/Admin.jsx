@@ -9,6 +9,7 @@ import {
 import ServiceManager from '../components/admin/ServiceManager';
 import SolutionManager from '../components/admin/SolutionManager';
 import PageContentManager from '../components/admin/PageContentManager';
+import MemberAccountsPage from './MemberAccountsPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -246,10 +247,14 @@ export default function Admin() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-8 grid w-full grid-cols-3 gap-0 p-0 bg-white border-b border-gray-300 rounded-none">
+          <TabsList className="mb-8 grid w-full grid-cols-4 gap-0 p-0 bg-white border-b border-gray-300 rounded-none">
             <TabsTrigger value="team" className="flex items-center justify-center gap-2 text-sm font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-white data-[state=active]:text-black data-[state=inactive]:text-gray-600 hover:text-black pb-3">
               <Users className="w-5 h-5" />
               <span>Équipe</span>
+            </TabsTrigger>
+            <TabsTrigger value="accounts" className="flex items-center justify-center gap-2 text-sm font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-white data-[state=active]:text-black data-[state=inactive]:text-gray-600 hover:text-black pb-3">
+              <Users className="w-5 h-5" />
+              <span>Accès Membres</span>
             </TabsTrigger>
             <TabsTrigger value="testimonials" className="flex items-center justify-center gap-2 text-sm font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-white data-[state=active]:text-black data-[state=inactive]:text-gray-600 hover:text-black pb-3">
               <MessageSquare className="w-5 h-5" />
@@ -372,6 +377,15 @@ export default function Admin() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Member Accounts Tab */}
+          <TabsContent value="accounts">
+            <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+              <CardContent className="pt-8">
+                <MemberAccountsPage />
               </CardContent>
             </Card>
           </TabsContent>

@@ -11,6 +11,9 @@ import Contact from './pages/Contact';
 import News from './pages/News';
 import Careers from './pages/Careers';
 import AdminDashboard from './pages/AdminDashboard';
+import MemberLogin from './pages/MemberLogin';
+import MemberProfile from './pages/MemberProfile';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 export default function App() {
   const location = useLocation();
@@ -26,6 +29,23 @@ export default function App() {
       <>
         <Routes>
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/member/login" element={<MemberLogin />} />
+          <Route 
+            path="/member/dashboard" 
+            element={
+              <ProtectedRoute>
+                <MemberProfile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/member/profile" 
+            element={
+              <ProtectedRoute>
+                <MemberProfile />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
         <Layout currentPageName={getCurrentPageName()}>
           <Routes>
