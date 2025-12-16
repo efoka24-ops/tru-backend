@@ -16,6 +16,7 @@ import JobsPage from './pages/JobsPage'
 import ApplicationsPage from './pages/ApplicationsPage'
 import SettingsPage from './pages/SettingsPage'
 import SyncViewPage from './pages/SyncViewPage'
+import LogsPage from './pages/LogsPage'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -75,6 +76,7 @@ function App() {
               <Route path="/applications" element={<ApplicationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/sync" element={<SyncViewPage />} />
+              <Route path="/logs" element={<LogsPage />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </AdminLayout>

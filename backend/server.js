@@ -937,6 +937,123 @@ app.delete('/api/services/:id', (req, res) => {
   }
 });
 
+// ============= LOGS ROUTES =============
+
+// Stockage des logs en mémoire (max 1000 logs)
+const logsStore = [];
+const MAX_LOGS = 1000;
+
+// POST /api/logs - Envoyer un log
+app.post('/api/logs', (req, res) => {
+  try {
+    const { timestamp, level, message, data } = req.body;
+    
+    const logEntry = {
+      timestamp: timestamp || new Date().toISOString(),
+      level: level || 'INFO',
+      message,
+      data,
+      receivedAt: new Date().toISOString()
+    };
+
+    // Ajouter au stockage
+    logsStore.unshift(logEntry);
+    if (logsStore.length > MAX_LOGS) {
+      logsStore.pop(); // Garder max 1000 logs
+    }
+
+    // Afficher dans la console du serveur aussi
+    const emoji = {
+      DEBUG: '🔍',
+      INFO: 'ℹ️',
+      WARN: '⚠️',
+      ERROR: '❌',
+      SUCCESS: '✅'
+    };
+
+    console.log(`${emoji[level] || '•'} [${level}] ${message}`, data || '');
+
+    res.json({ 
+      success: true, 
+      message: 'Log enregistré',
+      totalLogs: logsStore.length 
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'enregistrement du log:', error);
+    res.status(500).json({ error: 'Impossible d\'enregistrer le log' });
+  }
+});
+
+// GET /api/logs - Récupérer les logs
+app.get('/api/logs', (req, res) => {
+  try {
+    const level = req.query.level;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+
+    let filtered = logsStore;
+
+    // Filtrer par niveau si spécifié
+    if (level && level !== 'ALL') {
+      filtered = filtered.filter(log => log.level === level);
+    }
+
+    // Appliquer pagination
+    const paginated = filtered.slice(offset, offset + limit);
+
+    res.json({
+      logs: paginated,
+      total: filtered.length,
+      limit,
+      offset,
+      currentPage: Math.floor(offset / limit) + 1
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des logs:', error);
+    res.status(500).json({ error: 'Impossible de récupérer les logs' });
+  }
+});
+
+// GET /api/logs/stats - Obtenir des statistiques sur les logs
+app.get('/api/logs/stats', (req, res) => {
+  try {
+    const stats = {
+      total: logsStore.length,
+      byLevel: {
+        DEBUG: logsStore.filter(l => l.level === 'DEBUG').length,
+        INFO: logsStore.filter(l => l.level === 'INFO').length,
+        WARN: logsStore.filter(l => l.level === 'WARN').length,
+        ERROR: logsStore.filter(l => l.level === 'ERROR').length,
+        SUCCESS: logsStore.filter(l => l.level === 'SUCCESS').length
+      },
+      oldestLog: logsStore[logsStore.length - 1]?.timestamp || null,
+      newestLog: logsStore[0]?.timestamp || null
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des statistiques:', error);
+    res.status(500).json({ error: 'Impossible de récupérer les statistiques' });
+  }
+});
+
+// DELETE /api/logs - Effacer tous les logs
+app.delete('/api/logs', (req, res) => {
+  try {
+    const count = logsStore.length;
+    logsStore.length = 0; // Vider le tableau
+
+    res.json({ 
+      success: true,
+      message: `${count} log(s) supprimé(s)`,
+      remaining: logsStore.length
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression des logs:', error);
+    res.status(500).json({ error: 'Impossible de supprimer les logs' });
+  }
+});
+
 // ============= 404 HANDLER =============
 
 app.use((req, res) => {

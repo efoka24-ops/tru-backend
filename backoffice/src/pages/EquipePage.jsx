@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { backendClient } from '@/api/backendClient';
+import { logger } from '@/services/logger';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, Save, X, Upload, ArrowUp, ArrowDown, CheckCircle, AlertCircle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -128,6 +129,8 @@ export default function EquipePage() {
 
   // Envoyer une mise à jour à tous les services
   const syncTeamToFrontend = async (action, member) => {
+    const startTime = performance.now();
+    
     // Normalize member data - convert photo_url to image for backend compatibility
     const normalizedMember = {
       ...member,
@@ -142,105 +145,215 @@ export default function EquipePage() {
       source: 'backoffice'
     };
 
+    logger.info(`Synchronisation "${action}" du membre #${normalizedMember.id || 'nouveau'}`, {
+      action,
+      memberId: normalizedMember.id,
+      memberName: normalizedMember.name
+    });
+
     // Synchroniser avec le backend principal (port 5000)
     try {
+      let method, url, body;
+      
       if (action === 'create') {
-        await fetch(`${BACKEND_API_URL}/team`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(normalizedMember)
-        });
-        console.log(`✅ Membre créé et synchronisé au backend principal`);
+        method = 'POST';
+        url = `${BACKEND_API_URL}/team`;
+        body = JSON.stringify(normalizedMember);
       } else if (action === 'update' && normalizedMember.id) {
-        await fetch(`${BACKEND_API_URL}/team/${normalizedMember.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(normalizedMember)
-        });
-        console.log(`✅ Membre modifié et synchronisé au backend principal`);
+        method = 'PUT';
+        url = `${BACKEND_API_URL}/team/${normalizedMember.id}`;
+        body = JSON.stringify(normalizedMember);
       } else if (action === 'delete' && normalizedMember.id) {
-        await fetch(`${BACKEND_API_URL}/team/${normalizedMember.id}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        console.log(`✅ Membre supprimé du backend principal`);
+        method = 'DELETE';
+        url = `${BACKEND_API_URL}/team/${normalizedMember.id}`;
+        body = null;
       }
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body
+      });
+
+      const duration = performance.now() - startTime;
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error || `HTTP ${response.status}`);
+        logger.error(`Synchronisation "${action}" échouée`, {
+          action,
+          status: response.status,
+          error: errorData.error || 'Erreur inconnue',
+          duration: `${duration.toFixed(2)}ms`
+        });
+        throw error;
+      }
+
+      logger.success(`Synchronisation "${action}" réussie`, {
+        action,
+        memberId: normalizedMember.id,
+        memberName: normalizedMember.name,
+        duration: `${duration.toFixed(2)}ms`
+      });
     } catch (error) {
-      console.warn('⚠️ Backend principal sync skipped:', error.message);
+      const duration = performance.now() - startTime;
+      logger.error(`Erreur synchronisation "${action}"`, {
+        action,
+        error: error.message,
+        duration: `${duration.toFixed(2)}ms`
+      });
+      throw error;
     }
 
     // Notifier le frontend admin
     try {
       // Note: Frontend sur Vercel n'a pas d'endpoint team-update, il récupère les données via le backend
-      // Skip cette notification
-      console.log(`⏭️ Frontend admin notification skipped (Vercel récupère depuis le backend)`);
+      logger.debug(`Notification frontend admin ignorée`, {
+        reason: 'Vercel récupère les données depuis le backend'
+      });
     } catch (error) {
-      console.warn('⚠️ Frontend admin notification skipped:', error.message);
+      logger.warn(`Notification frontend admin échouée`, { error: error.message });
     }
 
     // Notifier le site TRU principal
     try {
       // Note: Site TRU sur Vercel n'a pas d'endpoint team-update, il récupère les données via le backend
-      // Skip cette notification
-      console.log(`⏭️ Site TRU notification skipped (Vercel récupère depuis le backend)`);
+      logger.debug(`Notification site TRU ignorée`, {
+        reason: 'Vercel récupère les données depuis le backend'
+      });
     } catch (error) {
-      console.warn('⚠️ Site TRU notification skipped:', error.message);
+      logger.warn(`Notification site TRU échouée`, { error: error.message });
     }
   };
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const result = await base44.entities.TeamMember.create(data);
-      // Synchroniser avec le frontend et le site TRU
-      await syncTeamToFrontend('create', result);
-      return result;
+      logger.info(`Création d'un nouveau membre: ${data.name}`, {
+        memberName: data.name,
+        action: 'CREATE'
+      });
+      
+      try {
+        const result = await base44.entities.TeamMember.create(data);
+        logger.success(`Membre créé avec l'ID: ${result.id}`, {
+          memberId: result.id,
+          memberName: result.name
+        });
+        
+        // Synchroniser avec le frontend et le site TRU
+        await syncTeamToFrontend('create', result);
+        return result;
+      } catch (error) {
+        logger.error(`Impossible de créer le membre: ${data.name}`, {
+          error: error.message,
+          memberName: data.name
+        });
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['teamMembers'] });
       refetch();
       setIsEditingDialog(false);
       setEditingMember(null);
-      showNotification('✅ Membre ajouté et synchronisé!', 'success');
+      showNotification(`✅ ${result.name} a été ajouté avec succès!`, 'success', 3000);
     },
     onError: (error) => {
-      showNotification('❌ Erreur lors de l\'ajout: ' + (error.message || 'Erreur inconnue'), 'error', 4000);
+      const errorMessage = error.message || 'Erreur inconnue';
+      showNotification(`❌ Erreur lors de l'ajout du membre: ${errorMessage}`, 'error', 5000);
+      logger.error('Erreur dans la mutation de création', { 
+        error: errorMessage,
+        details: error 
+      });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const result = await base44.entities.TeamMember.update(id, data);
-      // Synchroniser avec le frontend et le site TRU
-      await syncTeamToFrontend('update', result);
-      return result;
+      logger.info(`Modification du membre #${id}: ${data.name}`, {
+        memberId: id,
+        memberName: data.name,
+        action: 'UPDATE'
+      });
+      
+      try {
+        const result = await base44.entities.TeamMember.update(id, data);
+        logger.success(`Membre #${id} modifié avec succès`, {
+          memberId: id,
+          memberName: result.name
+        });
+        
+        // Synchroniser avec le frontend et le site TRU
+        await syncTeamToFrontend('update', result);
+        return result;
+      } catch (error) {
+        logger.error(`Impossible de modifier le membre #${id}`, {
+          memberId: id,
+          error: error.message
+        });
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['teamMembers'] });
       refetch();
       setIsEditingDialog(false);
       setEditingMember(null);
-      showNotification('✅ Membre modifié et synchronisé!', 'success');
+      showNotification(`✅ Les modifications de ${result.name} ont été enregistrées!`, 'success', 3000);
     },
     onError: (error) => {
-      showNotification('❌ Erreur lors de la modification: ' + (error.message || 'Erreur inconnue'), 'error', 4000);
+      const errorMessage = error.message || 'Erreur inconnue';
+      showNotification(`❌ Erreur lors de la modification: ${errorMessage}`, 'error', 5000);
+      logger.error('Erreur dans la mutation de modification', { 
+        error: errorMessage,
+        details: error 
+      });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      const result = await base44.entities.TeamMember.delete(id);
-      // Synchroniser la suppression avec les services
-      await syncTeamToFrontend('delete', { id });
-      return result;
+      const member = teamMembers.find(m => m.id === id);
+      const memberName = member?.name || `#${id}`;
+      
+      logger.info(`Suppression du membre #${id}: ${memberName}`, {
+        memberId: id,
+        memberName,
+        action: 'DELETE'
+      });
+      
+      try {
+        const result = await base44.entities.TeamMember.delete(id);
+        logger.success(`Membre #${id} supprimé avec succès`, {
+          memberId: id,
+          memberName
+        });
+        
+        // Synchroniser la suppression avec les services
+        await syncTeamToFrontend('delete', { id });
+        return result;
+      } catch (error) {
+        logger.error(`Impossible de supprimer le membre #${id}`, {
+          memberId: id,
+          memberName,
+          error: error.message
+        });
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teamMembers'] });
       refetch();
       setDeleteConfirm(null);
-      showNotification('✅ Membre supprimé et synchronisé!', 'success');
+      showNotification(`✅ Le membre a été supprimé avec succès!`, 'success', 3000);
     },
     onError: (error) => {
-      showNotification('❌ Erreur lors de la suppression: ' + (error.message || 'Erreur inconnue'), 'error', 4000);
+      const errorMessage = error.message || 'Erreur inconnue';
+      showNotification(`❌ Erreur lors de la suppression: ${errorMessage}`, 'error', 5000);
+      logger.error('Erreur dans la mutation de suppression', { 
+        error: errorMessage,
+        details: error 
+      });
     },
   });
 
@@ -264,6 +377,25 @@ export default function EquipePage() {
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      logger.info(`Chargement de la photo pour ${editingMember?.name || 'nouveau membre'}`, {
+        fileName: file.name,
+        fileSize: `${(file.size / 1024).toFixed(2)}KB`,
+        fileType: file.type
+      });
+
+      // Vérifier la taille limite (250KB pour le backend)
+      const MAX_SIZE = 250 * 1024; // 250KB
+      if (file.size > MAX_SIZE) {
+        const message = `Fichier trop volumineux (${(file.size / 1024).toFixed(2)}KB). Maximum: 250KB. Veuillez compresser l'image.`;
+        showNotification(message, 'error', 5000);
+        logger.warn(`Fichier image rejeté - trop volumineux`, {
+          fileName: file.name,
+          fileSize: `${(file.size / 1024).toFixed(2)}KB`,
+          maxSize: '250KB'
+        });
+        return;
+      }
+
       // Convertir en base64 data URL
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -271,10 +403,21 @@ export default function EquipePage() {
         setPhotoPreview(base64DataUrl);
         // Store the base64 data URL directly - no need to upload
         setEditingMember({ ...editingMember, photo_url: base64DataUrl });
-        showNotification('Photo chargée avec succès!', 'success', 2000);
+        
+        const base64Size = base64DataUrl.length;
+        logger.success(`Photo chargée et prête pour l'envoi`, {
+          fileName: file.name,
+          originalSize: `${(file.size / 1024).toFixed(2)}KB`,
+          base64Size: `${(base64Size / 1024).toFixed(2)}KB`
+        });
+        showNotification(`✅ Photo chargée avec succès! (${(base64Size / 1024).toFixed(2)}KB)`, 'success', 3000);
       };
       reader.onerror = () => {
-        showNotification('Erreur lors de la lecture du fichier', 'error', 3000);
+        logger.error(`Impossible de lire le fichier photo`, {
+          fileName: file.name,
+          error: 'Erreur FileReader'
+        });
+        showNotification('❌ Erreur lors de la lecture du fichier', 'error', 3000);
       };
       reader.readAsDataURL(file);
     }

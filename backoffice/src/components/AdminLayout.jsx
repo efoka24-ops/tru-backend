@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Users, Briefcase, Lightbulb, FileText, Settings, BarChart3, LogOut, MessageSquare, Eye, ClipboardList } from 'lucide-react';
+import { Menu, X, Users, Briefcase, Lightbulb, FileText, Settings, BarChart3, LogOut, MessageSquare, Eye, ClipboardList, LogStream } from 'lucide-react';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/jobs', label: 'Offres d\'emploi', icon: Briefcase },
   { path: '/applications', label: 'Candidatures', icon: ClipboardList },
   { path: '/sync', label: 'Synchronisation', icon: Eye },
+  { path: '/logs', label: 'Journaux', icon: LogStream },
   { path: '/settings', label: 'Paramètres', icon: Settings },
 ];
 

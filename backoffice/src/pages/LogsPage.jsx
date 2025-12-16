@@ -1,0 +1,296 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Download, Trash2, RefreshCw, Filter, ChevronDown } from 'lucide-react';
+import { logger } from '@/services/logger';
+
+export default function LogsPage() {
+  const [logs, setLogs] = useState([]);
+  const [filteredLogs, setFilteredLogs] = useState([]);
+  const [selectedLevel, setSelectedLevel] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedLog, setExpandedLog] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const LOG_LEVEL_COLORS = {
+    DEBUG: 'bg-gray-100 text-gray-700 border-gray-300',
+    INFO: 'bg-blue-100 text-blue-700 border-blue-300',
+    WARN: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+    ERROR: 'bg-red-100 text-red-700 border-red-300',
+    SUCCESS: 'bg-green-100 text-green-700 border-green-300'
+  };
+
+  const LOG_LEVEL_BG = {
+    DEBUG: 'bg-gray-50',
+    INFO: 'bg-blue-50',
+    WARN: 'bg-yellow-50',
+    ERROR: 'bg-red-50',
+    SUCCESS: 'bg-green-50'
+  };
+
+  // Charger les logs locaux au montage
+  useEffect(() => {
+    loadLogs();
+  }, []);
+
+  // Filtrer les logs quand le niveau ou la recherche change
+  useEffect(() => {
+    filterLogs();
+  }, [logs, selectedLevel, searchTerm]);
+
+  const loadLogs = async () => {
+    setIsLoading(true);
+    try {
+      const localLogs = logger.getLocalLogs();
+      setLogs(localLogs);
+
+      // Essayer de charger aussi du backend
+      try {
+        const backendLogs = await logger.getBackendLogs({ limit: 50 });
+        if (Array.isArray(backendLogs) && backendLogs.length > 0) {
+          // Fusionner avec logs locaux (backend en priorité)
+          const mergedLogs = [...backendLogs, ...localLogs];
+          // Supprimer les doublons
+          const uniqueLogs = Array.from(
+            new Map(mergedLogs.map(log => [
+              `${log.timestamp}-${log.message}`,
+              log
+            ])).values()
+          ).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          setLogs(uniqueLogs);
+        }
+      } catch (err) {
+        console.warn('Backend logs non disponibles');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filterLogs = () => {
+    let filtered = logs;
+
+    // Filtrer par niveau
+    if (selectedLevel !== 'ALL') {
+      filtered = filtered.filter(log => log.level === selectedLevel);
+    }
+
+    // Filtrer par recherche
+    if (searchTerm) {
+      filtered = filtered.filter(log =>
+        log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (log.data && JSON.stringify(log.data).toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    setFilteredLogs(filtered);
+  };
+
+  const clearLogs = () => {
+    if (confirm('Êtes-vous sûr de vouloir effacer tous les logs locaux?')) {
+      logger.clearLocalLogs();
+      setLogs([]);
+      setFilteredLogs([]);
+    }
+  };
+
+  const exportLogs = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    logger.exportLogs(`logs-${timestamp}.json`);
+  };
+
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString('fr-FR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
+  const getLevelIcon = (level) => {
+    const icons = {
+      DEBUG: '🔍',
+      INFO: 'ℹ️',
+      WARN: '⚠️',
+      ERROR: '❌',
+      SUCCESS: '✅'
+    };
+    return icons[level] || '•';
+  };
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-slate-900 mb-2">Journaux d'activité</h1>
+        <p className="text-slate-600">Suivi des opérations et débogage des erreurs</p>
+      </div>
+
+      {/* Controls */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-lg shadow-md border border-slate-200 p-6 mb-6"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Recherche */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Rechercher</label>
+            <input
+              type="text"
+              placeholder="Message ou données..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          {/* Filtre par niveau */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Niveau</label>
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="ALL">Tous les niveaux</option>
+              <option value="DEBUG">🔍 DEBUG</option>
+              <option value="INFO">ℹ️ INFO</option>
+              <option value="WARN">⚠️ AVERTISSEMENT</option>
+              <option value="ERROR">❌ ERREUR</option>
+              <option value="SUCCESS">✅ SUCCÈS</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={loadLogs}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {isLoading ? 'Chargement...' : 'Actualiser'}
+          </button>
+
+          <button
+            onClick={exportLogs}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exporter
+          </button>
+
+          <button
+            onClick={clearLogs}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Effacer
+          </button>
+
+          {/* Compteur */}
+          <div className="ml-auto flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg text-slate-700 font-medium">
+            <span>{filteredLogs.length} log{filteredLogs.length !== 1 ? 's' : ''}</span>
+            {selectedLevel !== 'ALL' && (
+              <span className="text-sm opacity-75">({logs.length} total)</span>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Logs List */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-2"
+      >
+        <AnimatePresence>
+          {filteredLogs.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md border border-slate-200 p-12 text-center">
+              <p className="text-slate-600 text-lg">
+                {logs.length === 0 ? 'Aucun log disponible' : 'Aucun log correspondant aux filtres'}
+              </p>
+            </div>
+          ) : (
+            filteredLogs.map((log, index) => (
+              <motion.div
+                key={`${log.timestamp}-${index}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ delay: index * 0.02 }}
+                className={`border rounded-lg overflow-hidden transition-all ${LOG_LEVEL_COLORS[log.level]}`}
+              >
+                {/* Header du log */}
+                <button
+                  onClick={() =>
+                    setExpandedLog(expandedLog === `${log.timestamp}-${index}` ? null : `${log.timestamp}-${index}`)
+                  }
+                  className={`w-full px-4 py-3 flex items-center justify-between hover:opacity-75 transition-opacity text-left ${LOG_LEVEL_BG[log.level]}`}
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <span className="text-xl">{getLevelIcon(log.level)}</span>
+                    <div className="flex-1">
+                      <div className="font-semibold">{log.message}</div>
+                      <div className="text-xs opacity-75 mt-0.5">
+                        {formatTimestamp(log.timestamp)}
+                      </div>
+                    </div>
+                  </div>
+                  <motion.div
+                    animate={{
+                      rotate: expandedLog === `${log.timestamp}-${index}` ? 180 : 0
+                    }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="w-5 h-5" />
+                  </motion.div>
+                </button>
+
+                {/* Détails du log */}
+                <AnimatePresence>
+                  {expandedLog === `${log.timestamp}-${index}` && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="border-t px-4 py-3 bg-white"
+                    >
+                      {log.data && (
+                        <div className="mb-4">
+                          <h4 className="font-semibold text-sm mb-2 text-slate-700">Détails:</h4>
+                          <pre className="bg-slate-50 p-3 rounded text-xs overflow-auto max-h-48 text-slate-700">
+                            {JSON.stringify(log.data, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+
+                      <div className="space-y-1 text-xs text-slate-600">
+                        {log.url && (
+                          <div>
+                            <span className="font-semibold">URL:</span> {log.url}
+                          </div>
+                        )}
+                        {log.userAgent && (
+                          <div>
+                            <span className="font-semibold">User-Agent:</span> {log.userAgent}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+}
