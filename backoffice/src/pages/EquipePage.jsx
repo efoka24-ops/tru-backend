@@ -12,8 +12,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import MemberAccountsPage from './MemberAccountsPage';
 
 export default function EquipePage() {
+  const [activeTab, setActiveTab] = useState('team');
   const [isEditingDialog, setIsEditingDialog] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -536,18 +538,50 @@ export default function EquipePage() {
 
       {/* Tabs */}
       <div className="flex gap-8 mb-8 border-b border-slate-200">
-        <div className="pb-4 border-b-2 border-emerald-600 font-semibold text-slate-900 flex items-center gap-2">
+        <button
+          onClick={() => setActiveTab('team')}
+          className={`pb-4 border-b-2 font-semibold flex items-center gap-2 transition-all ${
+            activeTab === 'team'
+              ? 'border-emerald-600 text-slate-900'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
           👥 Équipe
-        </div>
-        <div className="pb-4 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer flex items-center gap-2">
+        </button>
+        <button
+          onClick={() => setActiveTab('accounts')}
+          className={`pb-4 border-b-2 font-semibold flex items-center gap-2 transition-all ${
+            activeTab === 'accounts'
+              ? 'border-emerald-600 text-slate-900'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          👤 Accès Membres
+        </button>
+        <button
+          onClick={() => setActiveTab('testimonials')}
+          className={`pb-4 border-b-2 font-semibold flex items-center gap-2 transition-all ${
+            activeTab === 'testimonials'
+              ? 'border-emerald-600 text-slate-900'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
           💬 Témoignages
-        </div>
-        <div className="pb-4 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer flex items-center gap-2">
+        </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`pb-4 border-b-2 font-semibold flex items-center gap-2 transition-all ${
+            activeTab === 'settings'
+              ? 'border-emerald-600 text-slate-900'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
           ⚙️ Paramètres
-        </div>
+        </button>
       </div>
 
       {/* Main Card */}
+      {activeTab === 'team' && (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -916,8 +950,14 @@ export default function EquipePage() {
           )}
         </DialogContent>
       </Dialog>
+      )}
 
-      {/* Delete Confirmation */}
+      {/* Accès Membres Tab */}
+      {activeTab === 'accounts' && (
+      <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+        <MemberAccountsPage />
+      </div>
+      )}
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent className="border-2 border-red-200">
           <AlertDialogHeader>
