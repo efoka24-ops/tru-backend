@@ -491,12 +491,16 @@ app.put('/api/members/:id/photo', verifyToken, requireOwnProfile, upload.single(
 
 // ============= ADMIN - MEMBER ACCOUNTS ROUTES =============
 
-// GET /api/admin/members - Lister tous les membres avec statut de compte
+// GET /api/admin/members - Lister tous les membres de l'équipe avec statut de compte
 app.get('/api/admin/members', verifyToken, requireAdmin, (req, res) => {
   try {
     const data = readData();
     
-    const membersWithAccounts = data.team?.map(member => {
+    // Récupérer la liste de la team (équipe)
+    const team = data.team || [];
+    console.log(`[ADMIN/MEMBERS] Total team members: ${team.length}`);
+    
+    const membersWithAccounts = team.map(member => {
       const account = data.memberAccounts?.find(a => a.memberId === member.id);
       return {
         ...member,
@@ -512,15 +516,18 @@ app.get('/api/admin/members', verifyToken, requireAdmin, (req, res) => {
           hasAccount: false
         }
       };
-    }) || [];
+    });
+    
+    console.log(`[ADMIN/MEMBERS] Returning ${membersWithAccounts.length} members`);
     
     res.json({
       success: true,
-      members: membersWithAccounts
+      members: membersWithAccounts,
+      total: membersWithAccounts.length
     });
   } catch (error) {
     console.error('Get members error:', error);
-    res.status(500).json({ error: 'Failed to fetch members' });
+    res.status(500).json({ error: 'Failed to fetch members', details: error.message });
   }
 });
 

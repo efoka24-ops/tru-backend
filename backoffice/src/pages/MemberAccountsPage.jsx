@@ -48,11 +48,12 @@ export default function MemberAccountsPage() {
   const queryClient = useQueryClient();
   const token = localStorage.getItem('adminToken');
 
-  // Récupérer liste des membres
+  // Récupérer liste des membres de l'équipe
   const { data: members = [], isLoading, error: membersError } = useQuery({
     queryKey: ['members', token],
     queryFn: async () => {
       try {
+        console.log('[FRONTEND] Fetching members from /api/admin/members...');
         const response = await fetch(`${API_URL}/admin/members`, {
           method: 'GET',
           headers: {
@@ -62,15 +63,19 @@ export default function MemberAccountsPage() {
         });
         
         if (!response.ok) {
-          console.error('Failed to fetch members:', response.status, response.statusText);
+          console.error('[FRONTEND] Failed to fetch members:', response.status, response.statusText);
           throw new Error(`API Error: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log('Members loaded:', data.members?.length || 0);
+        console.log('[FRONTEND] Members loaded:', {
+          total: data.total,
+          count: data.members?.length || 0,
+          members: data.members?.map(m => ({ id: m.id, name: m.name, email: m.email, hasAccount: m.account?.hasAccount }))
+        });
         return data.members || [];
       } catch (error) {
-        console.error('Error fetching members:', error);
+        console.error('[FRONTEND] Error fetching members:', error);
         throw error;
       }
     },
@@ -617,17 +622,17 @@ export default function MemberAccountsPage() {
 
       {/* Create Account Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="bg-white border-slate-200 w-[600px] max-h-[400px] overflow-y-auto">
+        <DialogContent className="bg-white border-slate-200 w-[700px] max-h-[450px] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-slate-900">Créer un Accès Membre</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Sélectionner le Membre */}
+            {/* Sélectionner le Membre de l'Équipe */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 <User className="w-4 h-4 inline mr-2" />
-                Sélectionner Membre
+                Sélectionner Équipe/Membre
               </label>
               <select
                 value={formData.memberId}
@@ -636,6 +641,7 @@ export default function MemberAccountsPage() {
                   if (selectedId && members && members.length > 0) {
                     const selectedMemberObj = members.find(m => String(m.id) === String(selectedId));
                     if (selectedMemberObj) {
+                      console.log('[FORM] Selected member:', { id: selectedMemberObj.id, name: selectedMemberObj.name, email: selectedMemberObj.email });
                       setFormData(prev => ({
                         ...prev,
                         memberId: selectedId,
@@ -652,23 +658,26 @@ export default function MemberAccountsPage() {
                 }}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
               >
-                <option value="">-- Choisir un membre --</option>
+                <option value="">-- Choisir un membre de l'équipe --</option>
                 {isLoading ? (
-                  <option disabled>Chargement des membres...</option>
+                  <option disabled>⏳ Chargement de l'équipe...</option>
                 ) : membersError ? (
-                  <option disabled>❌ Erreur lors du chargement</option>
+                  <option disabled>❌ Erreur: {membersError.message}</option>
                 ) : members && members.length > 0 ? (
                   members
                     .filter(m => !m.account?.hasAccount)
                     .map(member => (
                       <option key={`member-${member.id}`} value={String(member.id)}>
-                        {member.name} ({member.email})
+                        👤 {member.name} {member.title ? `(${member.title})` : ''} - {member.email}
                       </option>
                     ))
                 ) : (
-                  <option disabled>Aucun membre sans compte disponible</option>
+                  <option disabled>✓ Tous les membres ont un accès</option>
                 )}
               </select>
+              {members.length === 0 && !isLoading && (
+                <p className="text-xs text-amber-600 mt-1">⚠️ Impossible de charger la liste de l'équipe</p>
+              )}
             </div>
 
             {/* Grille 2 colonnes pour les champs */}
@@ -721,12 +730,21 @@ export default function MemberAccountsPage() {
 
             {/* Membre Sélectionné */}
             {formData.memberId && members && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
-                <h4 className="font-semibold text-blue-900 text-xs mb-1">👤 Sélectionné</h4>
+              <div className="bg-green-50 border border-green-300 rounded-lg p-3">
+                <h4 className="font-semibold text-green-900 text-sm mb-2">✓ Sélectionné</h4>
                 {members.find(m => String(m.id) === String(formData.memberId)) && (
-                  <div className="text-xs text-blue-800">
-                    <p><strong>{members.find(m => String(m.id) === String(formData.memberId))?.name}</strong></p>
-                    <p>{formData.email}</p>
+                  <div className="text-sm text-green-800 space-y-1">
+                    {(() => {
+                      const selectedMember = members.find(m => String(m.id) === String(formData.memberId));
+                      return (
+                        <>
+                          <p><strong>👤 {selectedMember?.name}</strong></p>
+                          {selectedMember?.title && <p className="text-xs">📍 {selectedMember.title}</p>}
+                          <p className="text-xs">📧 {formData.email}</p>
+                          <p className="text-xs">🆔 ID: {formData.memberId}</p>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
