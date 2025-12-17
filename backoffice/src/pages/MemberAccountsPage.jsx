@@ -49,19 +49,34 @@ export default function MemberAccountsPage() {
   const token = localStorage.getItem('adminToken');
 
   // Récupérer liste des membres
-  const { data: members = [], isLoading } = useQuery({
-    queryKey: ['members'],
+  const { data: members = [], isLoading, error: membersError } = useQuery({
+    queryKey: ['members', token],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/admin/members`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      try {
+        const response = await fetch(`${API_URL}/admin/members`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to fetch members:', response.status, response.statusText);
+          throw new Error(`API Error: ${response.status}`);
         }
-      });
-      if (!response.ok) throw new Error('Failed to fetch members');
-      const data = await response.json();
-      return data.members || [];
+        
+        const data = await response.json();
+        console.log('Members loaded:', data.members?.length || 0);
+        return data.members || [];
+      } catch (error) {
+        console.error('Error fetching members:', error);
+        throw error;
+      }
     },
-    enabled: !!token
+    enabled: !!token,
+    retry: 2,
+    staleTime: 5 * 60 * 1000
   });
 
   // Créer un compte
@@ -602,119 +617,123 @@ export default function MemberAccountsPage() {
 
       {/* Create Account Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="bg-white border-slate-200 max-w-4xl">
+        <DialogContent className="bg-white border-slate-200 w-[400px] max-h-[600px] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-slate-900">Créer un Accès Membre</DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-6">
-            {/* Colonne Gauche */}
-            <div className="space-y-4">
-              {/* Sélectionner le Membre */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  <User className="w-4 h-4 inline mr-2" />
-                  Sélectionner Membre
-                </label>
-                <select
-                  value={formData.memberId}
-                  onChange={(e) => {
-                    const selectedId = e.target.value;
-                    const selectedMemberObj = members.find(m => m.id === selectedId);
-                    setFormData(prev => ({
-                      ...prev,
-                      memberId: selectedId,
-                      email: selectedMemberObj?.email || ''
-                    }));
-                  }}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                >
-                  <option value="">-- Choisir un membre --</option>
-                  {members.filter(m => !m.account?.hasAccount).map(member => (
-                    <option key={member.id} value={member.id}>
-                      {member.name} ({member.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Email Address */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  Email
-                </label>
-                <Input
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="member@trugroup.cm"
-                  className="bg-white border-slate-300 text-slate-900 font-medium"
-                />
-              </div>
-
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  <Shield className="w-4 h-4 inline mr-2" />
-                  Mot de Passe Initial
-                </label>
-                <Input
-                  type="password"
-                  value={formData.initialPassword}
-                  onChange={(e) => setFormData(prev => ({ ...prev, initialPassword: e.target.value }))}
-                  placeholder="Laisser vide pour utiliser le code"
-                  className="bg-white border-slate-300 text-slate-900 font-medium"
-                />
-                <p className="text-slate-500 text-xs mt-1">Si vide, le membre utilisera le code de connexion</p>
-              </div>
+          <div className="space-y-4">
+            {/* Sélectionner le Membre */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Sélectionner Membre
+              </label>
+              <select
+                value={formData.memberId}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const selectedMemberObj = members && members.length > 0 
+                    ? members.find(m => m.id === parseInt(selectedId))
+                    : null;
+                  setFormData(prev => ({
+                    ...prev,
+                    memberId: selectedId,
+                    email: selectedMemberObj?.email || ''
+                  }));
+                }}
+                className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              >
+                <option value="">-- Choisir un membre --</option>
+                {isLoading ? (
+                  <option disabled>Chargement des membres...</option>
+                ) : membersError ? (
+                  <option disabled>❌ Erreur lors du chargement</option>
+                ) : members && members.length > 0 ? (
+                  members
+                    .filter(m => !m.account?.hasAccount)
+                    .map(member => (
+                      <option key={`member-${member.id}`} value={member.id}>
+                        {member.name} ({member.email})
+                      </option>
+                    ))
+                ) : (
+                  <option disabled>Aucun membre sans compte disponible</option>
+                )}
+              </select>
             </div>
 
-            {/* Colonne Droite */}
-            <div className="space-y-4">
-              {/* Role */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  <Shield className="w-4 h-4 inline mr-2" />
-                  Rôle
-                </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                >
-                  <option value="member">Membre Standard</option>
-                  <option value="admin">Administrateur</option>
-                </select>
-              </div>
-
-              {/* Info Box */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  Informations
-                </h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>✓ Code unique: 12 caractères</li>
-                  <li>✓ Validité: 24 heures</li>
-                  <li>✓ Token JWT sécurisé</li>
-                  <li>✓ Permissions par rôle</li>
-                </ul>
-              </div>
-
-              {/* Member Info Display */}
-              {formData.memberId && (
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-slate-900 mb-2">Membre Sélectionné</h4>
-                  {members.find(m => m.id === formData.memberId) && (
-                    <div className="text-sm text-slate-700 space-y-1">
-                      <p><strong>Nom:</strong> {members.find(m => m.id === formData.memberId)?.name}</p>
-                      <p><strong>Email:</strong> {formData.email}</p>
-                      <p><strong>ID:</strong> {formData.memberId}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+            {/* Email Address */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <Mail className="w-4 h-4 inline mr-2" />
+                Email
+              </label>
+              <Input
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="member@trugroup.cm"
+                className="bg-white border-slate-300 text-slate-900 font-medium"
+              />
             </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <Shield className="w-4 h-4 inline mr-2" />
+                Mot de Passe Initial
+              </label>
+              <Input
+                type="password"
+                value={formData.initialPassword}
+                onChange={(e) => setFormData(prev => ({ ...prev, initialPassword: e.target.value }))}
+                placeholder="Laisser vide pour utiliser le code"
+                className="bg-white border-slate-300 text-slate-900 font-medium"
+              />
+              <p className="text-slate-500 text-xs mt-1">Si vide, le membre utilisera le code de connexion</p>
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <Shield className="w-4 h-4 inline mr-2" />
+                Rôle
+              </label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              >
+                <option value="member">Membre Standard</option>
+                <option value="admin">Administrateur</option>
+              </select>
+            </div>
+
+            {/* Info Box */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <h4 className="font-semibold text-blue-900 text-sm mb-2 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Informations
+              </h4>
+              <ul className="text-xs text-blue-800 space-y-1">
+                <li>✓ Code unique: 12 caractères</li>
+                <li>✓ Validité: 24 heures</li>
+                <li>✓ Token JWT sécurisé</li>
+              </ul>
+            </div>
+
+            {/* Member Info Display */}
+            {formData.memberId && members && (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <h4 className="font-semibold text-slate-900 text-sm mb-2">Membre Sélectionné</h4>
+                {members.find(m => m.id === formData.memberId) && (
+                  <div className="text-xs text-slate-700 space-y-1">
+                    <p><strong>Nom:</strong> {members.find(m => m.id === formData.memberId)?.name}</p>
+                    <p><strong>Email:</strong> {formData.email}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
