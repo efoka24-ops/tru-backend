@@ -72,11 +72,28 @@ const upload = multer({
 });
 
 // Middleware
+// CORS Configuration - support local development and production
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'https://tru-backoffice.vercel.app',
+  'https://tru-backend-o1zc.onrender.com',
+  'https://tru-website.vercel.app'
+];
+
 app.use(cors({
-  origin: '*',
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for now, can be restricted later
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false,
+  credentials: true,
   maxAge: 86400
 }));
 
