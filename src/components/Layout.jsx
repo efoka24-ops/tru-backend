@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { siteSettings, navItems } from '../data/content';
+import { navItems, siteSettings as defaultSettings } from '../data/content';
 import { useAppSettings } from '../context/SettingsContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ChevronRight } from 'lucide-react';
@@ -12,6 +12,9 @@ export default function Layout({ children, currentPageName }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { settings } = useAppSettings();
+  
+  // Utiliser les settings du backend, ou les defaults
+  const displaySettings = settings || defaultSettings;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -156,14 +159,14 @@ export default function Layout({ children, currentPageName }) {
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-2xl overflow-hidden bg-black flex items-center justify-center shadow-lg">
                   <img 
-                    src={siteSettings.logo_url} 
-                    alt={siteSettings.company_name} 
+                    src={displaySettings.logo_url} 
+                    alt={displaySettings.company_name} 
                     className="w-full h-full object-contain p-2"
                   />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg">{siteSettings.company_name}</h3>
-                  <p className="text-green-400 text-sm">{siteSettings.slogan}</p>
+                  <h3 className="font-bold text-lg">{displaySettings.company_name}</h3>
+                  <p className="text-green-400 text-sm">{displaySettings.slogan}</p>
                 </div>
               </div>
               <p className="text-slate-400 text-sm leading-relaxed">
@@ -236,7 +239,7 @@ export default function Layout({ children, currentPageName }) {
           {/* Divider */}
           <div className="border-t border-slate-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center text-sm text-slate-400">
-              <p>© 2025 {siteSettings.company_name}. Tous droits réservés.</p>
+              <p>© 2025 {settings?.company_name || siteSettings.company_name}. Tous droits réservés.</p>
               <div className="flex gap-6 mt-4 md:mt-0">
                 {settings?.socialMedia?.facebook && (
                   <a href={settings.socialMedia.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Facebook</a>

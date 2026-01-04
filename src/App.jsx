@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { SettingsProvider } from './context/SettingsContext';
 import Layout from './components/Layout';
@@ -14,9 +14,22 @@ import AdminDashboard from './pages/AdminDashboard';
 import MemberLogin from './pages/MemberLogin';
 import MemberProfile from './pages/MemberProfile';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { getAllBackendData } from './data/backendData';
 
 export default function App() {
   const location = useLocation();
+
+  // Charger les données du backend au démarrage
+  useEffect(() => {
+    console.log('🔄 Chargement des données du backend...');
+    getAllBackendData().then((data) => {
+      console.log('✅ Données du backend chargées:', data);
+      // Stocker dans sessionStorage pour accès rapide
+      sessionStorage.setItem('backendData', JSON.stringify(data));
+    }).catch((error) => {
+      console.warn('⚠️ Erreur lors du chargement des données:', error);
+    });
+  }, []);
 
   // Get current page name from path
   const getCurrentPageName = () => {

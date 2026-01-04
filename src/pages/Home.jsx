@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { siteSettings, solutions } from '../data/content';
+import { siteSettings as defaultSettings, solutions as defaultSolutions } from '../data/content';
+import { useAppSettings } from '../context/SettingsContext';
 import { motion } from 'framer-motion';
 import { 
   ArrowRight, 
@@ -16,7 +17,8 @@ import {
 import { Button } from "../components/Button";
 
 export default function Home() {
-  const domains = [
+  const { settings } = useAppSettings();
+  const displaySettings = settings || defaultSettings;
     { icon: Building2, title: "Conseil en organisation", desc: "Audit et optimisation des processus" },
     { icon: Smartphone, title: "Transformation digitale", desc: "E-administration et solutions numériques" },
     { icon: Users, title: "Développement web & mobile", desc: "Applications sur mesure" },
