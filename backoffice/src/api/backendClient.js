@@ -113,18 +113,27 @@ export const backendClient = {
     return response.json();
   },
 
-  // Contacts
   async getContacts() {
     const response = await fetch(`${BACKEND_URL}/api/contacts`);
     if (!response.ok) throw new Error('Failed to fetch contacts');
     return response.json();
   },
 
-  async replyToContact(data) {
+  async updateContact(id, data) {
+    const response = await fetch(`${BACKEND_URL}/api/contacts/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update contact');
+    return response.json();
+  },
+
+  async replyToContact(id, data) {
     const response = await fetch(`${BACKEND_URL}/api/contacts/reply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify({ id, ...data })
     });
     if (!response.ok) throw new Error('Failed to send reply');
     return response.json();

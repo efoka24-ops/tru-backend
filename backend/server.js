@@ -1478,6 +1478,29 @@ app.put('/api/contacts/:id', (req, res) => {
   }
 });
 
+app.post('/api/contacts/reply', (req, res) => {
+  try {
+    const { id, method, message } = req.body;
+    const data = readData();
+    const index = data.contacts.findIndex(c => c.id == id);
+    if (index === -1) return res.status(404).json({ error: 'Contact non trouvé' });
+
+    // Mettre à jour le contact avec la réponse
+    data.contacts[index] = {
+      ...data.contacts[index],
+      status: 'replied',
+      replyMethod: method,
+      replyMessage: message,
+      replyDate: new Date().toISOString()
+    };
+
+    writeData(data);
+    res.json({ success: true, contact: data.contacts[index] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/contacts/:id', (req, res) => {
   try {
     const { id } = req.params;
