@@ -19,6 +19,7 @@ import { Button } from "../components/Button";
 export default function Home() {
   const { settings } = useAppSettings();
   const displaySettings = settings || defaultSettings;
+  const features = [
     { icon: Building2, title: "Conseil en organisation", desc: "Audit et optimisation des processus" },
     { icon: Smartphone, title: "Transformation digitale", desc: "E-administration et solutions numériques" },
     { icon: Users, title: "Développement web & mobile", desc: "Applications sur mesure" },
