@@ -48,9 +48,19 @@ export default function Admin() {
     queryFn: () => base44.entities.Testimonial.list('display_order'),
   });
 
-  const { data: settingsArray = [], isLoading: loadingSettings } = useQuery({
+  const { data: settingsArray = [], isLoading: loadingSettings, error: settingsError } = useQuery({
     queryKey: ['siteSettings'],
-    queryFn: () => base44.entities.SiteSettings.list(),
+    queryFn: async () => {
+      try {
+        console.log('🔧 Fetching settings from:', `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/settings`);
+        const result = await base44.entities.SiteSettings.list();
+        console.log('✅ Settings fetched successfully:', result);
+        return result;
+      } catch (err) {
+        console.error('❌ Error fetching settings:', err);
+        throw err;
+      }
+    },
   });
 
   const settings = settingsArray[0] || {
@@ -248,6 +258,14 @@ export default function Admin() {
           </h1>
           <p className="text-lg text-gray-600 font-medium">Gérez le contenu de votre site TRU GROUP</p>
         </div>
+
+        {/* Error Messages */}
+        {settingsError && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <h3 className="text-red-800 font-semibold mb-2">⚠️ Erreur de chargement</h3>
+            <p className="text-red-700 text-sm">{settingsError?.message || 'Une erreur est survenue lors du chargement des paramètres'}</p>
+          </div>
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-8 grid w-full grid-cols-4 gap-0 p-0 bg-white border-b border-gray-300 rounded-none">
