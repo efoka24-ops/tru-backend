@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CheckCircle2, Zap, Building2, X, Clock, Users, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../api/apiService';
+import { services as defaultServices } from '../data/content';
 
 export default function Services() {
   const navigate = useNavigate();
-  const [services, setServices] = useState([]);
+  const [services, setServices] = useState(defaultServices);
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState(null);
 
@@ -15,10 +16,12 @@ export default function Services() {
       try {
         setLoading(true);
         const data = await apiService.getServices();
-        setServices(data || []);
+        if (data && data.length > 0) {
+          setServices(data);
+        }
       } catch (err) {
         console.error('❌ Erreur:', err);
-        setServices([]);
+        setServices(defaultServices);
       } finally {
         setLoading(false);
       }

@@ -1,3 +1,8 @@
+import logoUrl from '../assets/trugroup-logo.png';
+
+// Exported logo for use throughout the app
+export { logoUrl };
+
 export const siteSettings = {
   company_name: 'TRU GROUP',
   slogan: 'Au cœur de l\'innovation',
@@ -5,7 +10,7 @@ export const siteSettings = {
   email: 'info@trugroup.cm',
   address: 'Maroua, Cameroun',
   primary_color: '#22c55e',
-  logo_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6931c0aad472b3548a5e1e75/66a0a52ca_images1.jpg',
+  logo_url: logoUrl,
   facebook_url: '#',
   linkedin_url: '#',
   twitter_url: '#'

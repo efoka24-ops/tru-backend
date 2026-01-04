@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CheckCircle2, Target, Lightbulb, X, Clock, Users, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../api/apiService';
+import { solutions as defaultSolutions } from '../data/content';
 
 export default function Solutions() {
   const navigate = useNavigate();
-  const [solutions, setSolutions] = useState([]);
+  const [solutions, setSolutions] = useState(defaultSolutions);
   const [loading, setLoading] = useState(true);
   const [selectedSolution, setSelectedSolution] = useState(null);
 
@@ -15,10 +16,12 @@ export default function Solutions() {
       try {
         setLoading(true);
         const data = await apiService.getSolutions();
-        setSolutions(data || []);
+        if (data && data.length > 0) {
+          setSolutions(data);
+        }
       } catch (err) {
         console.error('❌ Erreur:', err);
-        setSolutions([]);
+        setSolutions(defaultSolutions);
       } finally {
         setLoading(false);
       }

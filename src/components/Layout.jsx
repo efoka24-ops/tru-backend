@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { navItems, siteSettings as defaultSettings } from '../data/content';
+import { navItems, siteSettings as defaultSettings, logoUrl } from '../data/content';
 import { useAppSettings } from '../context/SettingsContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ChevronRight } from 'lucide-react';
@@ -34,8 +34,8 @@ export default function Layout({ children, currentPageName }) {
     <div className="min-h-screen bg-white">
       <style>{`
         :root {
-          --primary-color: ${siteSettings.primary_color || '#22c55e'};
-          --secondary-color: #16a34a;
+          --primary-color: ${displaySettings.primary_color || '#22c55e'};
+          --secondary-color: ${displaySettings.secondary_color || '#16a34a'};
         }
       `}</style>
 
@@ -51,27 +51,27 @@ export default function Layout({ children, currentPageName }) {
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link to={createPageUrl('home')} className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shadow-lg transition-colors duration-300 ${
+              <div className={`w-16 h-16 rounded-full overflow-hidden flex items-center justify-center shadow-lg transition-colors duration-300 ${
                 isScrolled || !isHomePage
-                  ? 'bg-black' 
-                  : 'bg-black/40'
+                  ? 'bg-white' 
+                  : 'bg-slate-800 border border-slate-700'
               }`}>
                 <img 
-                  src={siteSettings.logo_url} 
-                  alt={siteSettings.company_name} 
-                  className="w-full h-full object-contain p-2"
+                  src={logoUrl} 
+                  alt={displaySettings.company_name} 
+                  className="w-full h-full object-contain"
                 />
               </div>
               <div className="hidden sm:block">
-                <span className={`font-bold text-xl block leading-tight transition-colors duration-300 ${
+                <span className={`font-bold text-lg block leading-tight transition-colors duration-300 ${
                   isScrolled || !isHomePage ? 'text-slate-900' : 'text-white'
                 }`}>
-                  {siteSettings.company_name}
+                  {displaySettings.company_name}
                 </span>
                 <span className={`text-xs transition-colors duration-300 ${
                   isScrolled || !isHomePage ? 'text-green-600' : 'text-green-400'
                 }`}>
-                  {siteSettings.slogan}
+                  {displaySettings.slogan}
                 </span>
               </div>
             </Link>
@@ -157,11 +157,11 @@ export default function Layout({ children, currentPageName }) {
             {/* Brand */}
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-2xl overflow-hidden bg-black flex items-center justify-center shadow-lg">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center shadow-lg border border-slate-700">
                   <img 
-                    src={displaySettings.logo_url} 
+                    src={logoUrl} 
                     alt={displaySettings.company_name} 
-                    className="w-full h-full object-contain p-2"
+                    className="w-full h-full object-contain"
                   />
                 </div>
                 <div>
@@ -239,7 +239,7 @@ export default function Layout({ children, currentPageName }) {
           {/* Divider */}
           <div className="border-t border-slate-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center text-sm text-slate-400">
-              <p>© 2025 {settings?.company_name || siteSettings.company_name}. Tous droits réservés.</p>
+              <p>© 2025 {settings?.company_name || displaySettings.company_name}. Tous droits réservés.</p>
               <div className="flex gap-6 mt-4 md:mt-0">
                 {settings?.socialMedia?.facebook && (
                   <a href={settings.socialMedia.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition-colors">Facebook</a>

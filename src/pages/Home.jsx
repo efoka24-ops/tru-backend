@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { siteSettings as defaultSettings, solutions as defaultSolutions } from '../data/content';
+import { siteSettings as defaultSettings, solutions } from '../data/content';
 import { useAppSettings } from '../context/SettingsContext';
 import { motion } from 'framer-motion';
 import { 
@@ -135,7 +135,7 @@ export default function Home() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {domains.map((domain, index) => (
+            {features.map((feature, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
@@ -145,10 +145,10 @@ export default function Home() {
                 className="text-center"
               >
                 <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                  <domain.icon className="w-8 h-8 text-slate-600" />
+                  <feature.icon className="w-8 h-8 text-slate-600" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{domain.title}</h3>
-                <p className="text-slate-600 text-sm">{domain.desc}</p>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{feature.title}</h3>
+                <p className="text-slate-600 text-sm">{feature.desc}</p>
               </motion.div>
             ))}
           </div>

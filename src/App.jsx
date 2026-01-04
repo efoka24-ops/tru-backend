@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { SettingsProvider, useAppSettings } from './context/SettingsContext';
 import Layout from './components/Layout';
@@ -17,70 +17,58 @@ import Maintenance from './pages/Maintenance';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { getAllBackendData } from './data/backendData';
 
-// Composant qui affiche le contenu avec vérification maintenance
 function AppContent() {
   const { settings } = useAppSettings();
   const location = useLocation();
   
-  const getCurrentPageName = () => {
-    const path = location.pathname.toLowerCase().slice(1) || 'home';
-    return path;
-  };
-  
-  // Si mode maintenance actif et pas en admin, afficher la page maintenance
   if (settings?.maintenanceMode && !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/member')) {
     return <Maintenance />;
   }
 
   return (
-    <>
-      <Routes>
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/member/login" element={<MemberLogin />} />
-        <Route 
-          path="/member/dashboard" 
-          element={
-            <ProtectedRoute>
-              <MemberProfile />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/member/profile" 
-          element={
-            <ProtectedRoute>
-              <MemberProfile />
-            </ProtectedRoute>
-          } 
-        />
-      </Routes>
-      <Layout currentPageName={getCurrentPageName(location)}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/solutions" element={<Solutions />} />
-          <Route path="/team" element={<Team />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/news" element={<News />} />
-          <Route path="/careers" element={<Careers />} />
-          
-          {/* Catch all - redirect to home */}
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </Layout>
-    </>
+    <Routes>
+      {/* Admin Routes */}
+      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/member/login" element={<MemberLogin />} />
+      <Route 
+        path="/member/dashboard" 
+        element={
+          <ProtectedRoute>
+            <MemberProfile />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/member/profile" 
+        element={
+          <ProtectedRoute>
+            <MemberProfile />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Public Routes with Layout */}
+      <Route path="/" element={<Layout currentPageName="home"><Home /></Layout>} />
+      <Route path="/home" element={<Layout currentPageName="home"><Home /></Layout>} />
+      <Route path="/about" element={<Layout currentPageName="about"><About /></Layout>} />
+      <Route path="/services" element={<Layout currentPageName="services"><Services /></Layout>} />
+      <Route path="/solutions" element={<Layout currentPageName="solutions"><Solutions /></Layout>} />
+      <Route path="/team" element={<Layout currentPageName="team"><Team /></Layout>} />
+      <Route path="/contact" element={<Layout currentPageName="contact"><Contact /></Layout>} />
+      <Route path="/news" element={<Layout currentPageName="news"><News /></Layout>} />
+      <Route path="/careers" element={<Layout currentPageName="careers"><Careers /></Layout>} />
+      
+      {/* Catch all */}
+      <Route path="*" element={<Layout currentPageName="home"><Home /></Layout>} />
+    </Routes>
   );
 }
 
 export default function App() {
-  // Charger les données du backend au démarrage
   useEffect(() => {
     console.log('🔄 Chargement des données du backend...');
     getAllBackendData().then((data) => {
       console.log('✅ Données du backend chargées:', data);
-      // Stocker dans sessionStorage pour accès rapide
       sessionStorage.setItem('backendData', JSON.stringify(data));
     }).catch((error) => {
       console.warn('⚠️ Erreur lors du chargement des données:', error);
