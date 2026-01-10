@@ -1,0 +1,32 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Admin User",
+      "email": "admin@sitetru.com",
+      "password": "hashed_password",
+      "role": "admin",
+      "createdAt": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "settings": {
+    "siteTitle": "TRU GROUP",
+    "company_name": "TRU GROUP",
+    "slogan": "Au cœur de l'innovation",
+    "email": "infos@trugroup.cm",
+    "phone": "+237678758976",
+    "address": "Garoua, Cameroun",
+    "description": "Cabinet de conseil et d'ingénierie digitale",
+    "primary_color": "#22c55e",
+    "secondary_color": "#16a34a"
+  },
+  "services": [],
+  "solutions": [],
+  "team": [],
+  "testimonials": [],
+  "contacts": [],
+  "news": [],
+  "jobs": [],
+  "applications": [],
+  "projects": []
+}

@@ -20,6 +20,22 @@ const __dirname = path.dirname(__filename);
 
 // Path to data.json
 const DATA_FILE = path.join(__dirname, 'data.json');
+const DATA_EXAMPLE_FILE = path.join(__dirname, 'data.example.json');
+
+// Initialize data.json from data.example.json if it doesn't exist
+function initializeData() {
+  if (!fs.existsSync(DATA_FILE)) {
+    try {
+      const exampleData = fs.readFileSync(DATA_EXAMPLE_FILE, 'utf-8');
+      fs.writeFileSync(DATA_FILE, exampleData);
+      console.log('✅ data.json initialized from data.example.json');
+    } catch (error) {
+      console.error('Error initializing data.json:', error);
+    }
+  }
+}
+
+initializeData();
 
 // Helper function to read data
 function readData() {
