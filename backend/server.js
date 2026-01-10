@@ -19,20 +19,31 @@ const PORT = process.env.PORT || 5000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Path to data.json
-const DATA_FILE = path.join(__dirname, 'data.json');
+// 🔵 Utiliser le volume persistant Render si disponible, sinon local
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const DATA_FILE = path.join(DATA_DIR, 'data.json');
 const DATA_EXAMPLE_FILE = path.join(__dirname, 'data.example.json');
+
+// Assurer que le répertoire des données existe
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 // Initialize data.json from data.example.json if it doesn't exist
 function initializeData() {
+  console.log(`📂 Chemin DATA_FILE: ${DATA_FILE}`);
+  console.log(`📂 Volume persistant: ${DATA_DIR}`);
+  
   if (!fs.existsSync(DATA_FILE)) {
     try {
       const exampleData = fs.readFileSync(DATA_EXAMPLE_FILE, 'utf-8');
       fs.writeFileSync(DATA_FILE, exampleData);
-      console.log('✅ data.json initialized from data.example.json');
+      console.log('✅ data.json créé dans le volume persistant à partir de data.example.json');
     } catch (error) {
-      console.error('Error initializing data.json:', error);
+      console.error('❌ Erreur initialisation data.json:', error);
     }
+  } else {
+    console.log('✅ data.json trouvé dans le volume persistant (données restaurées du redémarrage)');
   }
 }
 

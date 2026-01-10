@@ -4,10 +4,20 @@ services:
     env: node
     plan: free
     root: backend
+    
+    # 🔵 Volume persistant pour data.json (survit aux redémarrages)
+    disk:
+      name: tru-data-volume
+      mountPath: /var/data
+      sizeGB: 1
+    
     buildCommand: cd backend && npm install
     startCommand: cd backend && node server.js
+    
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 5000
+      - key: DATA_DIR
+        value: /var/data
