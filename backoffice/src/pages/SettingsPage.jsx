@@ -18,7 +18,24 @@ import { apiClient } from '@/api/simpleClient';
 import { backendClient } from '@/api/backendClient';
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState(null);
+  const [settings, setSettings] = useState({
+    siteTitle: '',
+    slogan: '',
+    tagline: '',
+    description: '',
+    email: '',
+    phone: '',
+    address: '',
+    primary_color: '#22c55e',
+    secondary_color: '#16a34a',
+    logo_url: '',
+    facebook_url: '',
+    linkedin_url: '',
+    twitter_url: '',
+    maintenanceMode: false,
+    businessHours: '',
+    timezone: 'Africa/Douala',
+  });
   const [notification, setNotification] = useState(null);
   const [activeTab, setActiveTab] = useState('general');
   const queryClient = useQueryClient();
@@ -39,7 +56,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (fetchedSettings) {
-      setSettings(fetchedSettings);
+      setSettings(prevSettings => ({
+        ...prevSettings,
+        ...fetchedSettings
+      }));
     }
   }, [fetchedSettings]);
 

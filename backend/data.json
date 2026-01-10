@@ -280,8 +280,8 @@
       ]
     }
   ],
-  "settings": [
-    {
+  "settings": {
+    "0": {
       "id": 1,
       "company_name": "TRU GROUP",
       "slogan": "Au cœur de l'innovation",
@@ -295,8 +295,17 @@
       "linkedin_url": "#",
       "twitter_url": "#",
       "maintenanceMode": false
-    }
-  ],
+    },
+    "siteTitle": "TRU GROUP",
+    "company_name": "TRU GROUP",
+    "slogan": "Au cœur de l'innovation",
+    "tagline": "",
+    "email": "infos@trugroup.cm",
+    "phone": "+237678758976",
+    "address": "Garoua,Cameroun",
+    "description": "",
+    "updatedAt": "2026-01-10T19:24:48.734Z"
+  },
   "contacts": [
     {
       "id": 2,

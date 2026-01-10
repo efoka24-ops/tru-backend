@@ -1531,9 +1531,11 @@ app.put('/api/settings', (req, res) => {
   try {
     const data = readData();
 
+    const siteTitle = req.body.siteTitle || data.settings.siteTitle;
     data.settings = {
       ...data.settings,
-      siteTitle: req.body.siteTitle || data.settings.siteTitle,
+      siteTitle: siteTitle,
+      company_name: siteTitle, // Alias pour frontend compatibility
       slogan: req.body.slogan !== undefined ? req.body.slogan : data.settings.slogan,
       tagline: req.body.tagline !== undefined ? req.body.tagline : data.settings.tagline,
       email: req.body.email !== undefined ? req.body.email : data.settings.email,
