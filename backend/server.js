@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { hashPassword, comparePassword, generateJWT, verifyJWT } from './utils/passwordUtils.js';
 import { generateLoginCode, getExpiryDate, isCodeExpired } from './utils/codeGenerator.js';
 import { verifyToken, requireAdmin, requireMember, requireOwnProfile } from './middleware/auth.js';
+import gitBackupService from './services/gitAutoBackupService.js';
 
 dotenv.config();
 
@@ -69,6 +70,22 @@ function writeData(data) {
     return false;
   }
 }
+
+// Helper function to write data AND backup to GitHub
+async function writeDataAndBackup(data, action, details = '') {
+  // Write locally first
+  const writeOk = writeData(data);
+  
+  if (writeOk && process.env.GITHUB_TOKEN) {
+    // Auto-backup to GitHub (async, doesn't block)
+    gitBackupService.autoCommit(action, details).catch(err => {
+      console.error('Backup error (non-blocking):', err.message);
+    });
+  }
+  
+  return writeOk;
+}
+
 
 console.log('📧 Backend server starting on port', PORT);
 
@@ -145,8 +162,26 @@ app.get('/api/test', (req, res) => {
     status: 'OK',
     message: 'Backend is responding correctly',
     timestamp: new Date().toISOString(),
-    database: 'PostgreSQL'
+    database: 'JSON (data.json)',
+    autoBackup: process.env.GITHUB_TOKEN ? 'enabled' : 'disabled'
   });
+});
+
+// GET /api/admin/backup-status - Check auto-backup status
+app.get('/api/admin/backup-status', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const status = await gitBackupService.getBackupStatus();
+    res.json({
+      status: 'success',
+      backup: status,
+      message: 'Auto-backup is monitoring data.json changes'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message
+    });
+  }
 });
 
 // ============= UPLOAD ROUTE =============
