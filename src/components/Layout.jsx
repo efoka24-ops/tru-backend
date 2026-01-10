@@ -202,7 +202,6 @@ export default function Layout({ children, currentPageName }) {
               <ul className="space-y-2 text-slate-400 text-sm">
                 <li><Link to={createPageUrl('news')} className="hover:text-green-400 transition-colors">Actualités</Link></li>
                 <li><Link to={createPageUrl('careers')} className="hover:text-green-400 transition-colors">Offres d'emploi</Link></li>
-                <li><Link to={createPageUrl('projects')} className="hover:text-green-400 transition-colors">Projets réalisés</Link></li>
                 <li><Link to={createPageUrl('about')} className="hover:text-green-400 transition-colors">À propos</Link></li>
                 <li><Link to={createPageUrl('team')} className="hover:text-green-400 transition-colors">Notre équipe</Link></li>
               </ul>
