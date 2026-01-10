@@ -26,8 +26,13 @@
       "icon": "Building2",
       "title": "Conseil & Organisation",
       "description": "Nous accompagnons les institutions dans leur modernisation organisationnelle.",
-      "features": ["Audit organisationnel", "Cartographie processus", "Conduite du changement"],
-      "objective": "Rendre les organisations plus efficientes et modernes.",
+      "features": [
+        "Audit organisationnel",
+        "Cartographie et optimisation des processus",
+        "Rédaction de manuels et procédures",
+        "Conduite du changement"
+      ],
+      "objective": "Rendre les organisations plus efficientes, modernes et transparentes.",
       "color": "from-blue-500 to-indigo-600",
       "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=600&fit=crop"
     },
@@ -35,8 +40,13 @@
       "id": 2,
       "icon": "Monitor",
       "title": "Transformation digitale",
-      "description": "Nous concevons et déployons des solutions numériques adaptées.",
-      "features": ["Digitalisation services", "E-administration", "Tableaux de bord"],
+      "description": "Nous concevons et déployons des solutions numériques adaptées à vos besoins.",
+      "features": [
+        "Digitalisation des services publics",
+        "E-administration",
+        "Outils de gestion",
+        "Tableaux de bord décisionnels"
+      ],
       "objective": "Rendre la technologie accessible et durable.",
       "color": "from-amber-500 to-orange-600",
       "image": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&h=600&fit=crop"
@@ -46,10 +56,45 @@
       "icon": "Smartphone",
       "title": "Développement d'applications",
       "description": "Nous créons des plateformes et applications sur mesure.",
-      "features": ["Apps mobiles", "Plateformes web", "Systèmes d'info"],
-      "objective": "Concevoir des solutions scalables et sécurisées.",
+      "features": [
+        "Applications mobiles",
+        "Plateformes web",
+        "Systèmes d'information sectoriels",
+        "Outils SaaS"
+      ],
+      "objective": "Concevoir des solutions sur mesure, scalables et sécurisées.",
       "color": "from-emerald-500 to-teal-600",
       "image": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&h=600&fit=crop"
+    },
+    {
+      "id": 4,
+      "icon": "ClipboardCheck",
+      "title": "Gestion de projet & assistance technique",
+      "description": "Nous mettons à disposition des experts pour garantir le succès de vos projets.",
+      "features": [
+        "Gestion de projet",
+        "Pilotage stratégique",
+        "Suivi-évaluation",
+        "Coordination multisectorielle"
+      ],
+      "objective": "Garantir la réussite de chaque projet.",
+      "color": "from-purple-500 to-violet-600",
+      "image": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&h=600&fit=crop"
+    },
+    {
+      "id": 5,
+      "icon": "GraduationCap",
+      "title": "Formation & renforcement des capacités",
+      "description": "Nous proposons des formations professionnelles adaptées.",
+      "features": [
+        "Gestion de projet (classique & agile)",
+        "Outils numériques",
+        "Data & intelligence décisionnelle",
+        "Leadership et innovation"
+      ],
+      "objective": "Renforcer l'employabilité des jeunes et cadres locaux.",
+      "color": "from-pink-500 to-rose-600",
+      "image": "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&h=600&fit=crop"
     }
   ],
   "solutions": [
@@ -156,5 +201,66 @@
       "createdAt": "2025-01-01T00:00:00Z"
     }
   ],
-  "projects": []
+  "projects": [
+    {
+      "id": 1,
+      "name": "MokineVeto - Plateforme Télémédecine Vétérinaire",
+      "client": "Éleveurs & Ministère de l'Élevage",
+      "description": "Plateforme de consultation vétérinaire en ligne avec géolocalisation du bétail et détection précoce des maladies.",
+      "category": "Santé Animale",
+      "status": "Déployé",
+      "technologies": ["React", "Node.js", "React Native", "PostgreSQL"],
+      "details": "Solution complète connectant éleveurs et vétérinaires, incluant consultations en ligne, historique des soins, et alertes sanitaires.",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-10T00:00:00Z"
+    },
+    {
+      "id": 2,
+      "name": "Mokine - Système de Traçabilité IoT",
+      "client": "Éleveurs & Collectivités",
+      "description": "Solution IoT pour la géolocalisation en temps réel du bétail et la détection des vols.",
+      "category": "IoT & Traçabilité",
+      "status": "Déployé",
+      "technologies": ["IoT", "Node.js", "React", "MongoDB", "MQTT"],
+      "details": "Système complet de géolocalisation avec alertes intelligentes, dashboard éleveur, et rapports analytiques.",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-10T00:00:00Z"
+    },
+    {
+      "id": 3,
+      "name": "MokineKid - Bracelet de Sécurité Enfant",
+      "client": "Parents & Établissements Scolaires",
+      "description": "Bracelet intelligent avec géolocalisation, zones de sécurité et bouton SOS pour la protection des enfants.",
+      "category": "Sécurité",
+      "status": "Déployé",
+      "technologies": ["React Native", "Node.js", "WebSocket", "PostgreSQL"],
+      "details": "Application complète de suivi en temps réel avec notifications push, alertes de dépassement de zone et communication directe.",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-10T00:00:00Z"
+    },
+    {
+      "id": 4,
+      "name": "Système de Gestion Administrative - Orange Cameroun",
+      "client": "Orange Cameroun",
+      "description": "Plateforme de digitalisation des processus administratifs et des services publics.",
+      "category": "Administration",
+      "status": "Déployé",
+      "technologies": ["React", "Node.js", "PostgreSQL", "Redis"],
+      "details": "E-administration complète avec gestion documentaire, workflows, et tableaux de bord décisionnels.",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-10T00:00:00Z"
+    },
+    {
+      "id": 5,
+      "name": "Portail de Suivi-Évaluation Sectoriels",
+      "client": "Ministères & ONG",
+      "description": "Plateforme de collecte et d'analyse de données pour le suivi-évaluation de programmes publics.",
+      "category": "Gouvernance",
+      "status": "Déployé",
+      "technologies": ["React", "Node.js", "PostgreSQL", "D3.js"],
+      "details": "Dashboard analytique avec collecte mobile, data visualization, et exports rapports automatisés.",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-10T00:00:00Z"
+    }
+  ]
 }
