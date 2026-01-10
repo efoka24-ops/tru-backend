@@ -9,6 +9,7 @@ import { hashPassword, comparePassword, generateJWT, verifyJWT } from './utils/p
 import { generateLoginCode, getExpiryDate, isCodeExpired } from './utils/codeGenerator.js';
 import { verifyToken, requireAdmin, requireMember, requireOwnProfile } from './middleware/auth.js';
 import gitBackupService from './services/gitAutoBackupService.js';
+import initializeData from './initializeData.js';
 
 dotenv.config();
 
@@ -29,25 +30,15 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Initialize data.json from data.example.json if it doesn't exist
-function initializeData() {
-  console.log(`📂 Chemin DATA_FILE: ${DATA_FILE}`);
-  console.log(`📂 Volume persistant: ${DATA_DIR}`);
-  
-  if (!fs.existsSync(DATA_FILE)) {
-    try {
-      const exampleData = fs.readFileSync(DATA_EXAMPLE_FILE, 'utf-8');
-      fs.writeFileSync(DATA_FILE, exampleData);
-      console.log('✅ data.json créé dans le volume persistant à partir de data.example.json');
-    } catch (error) {
-      console.error('❌ Erreur initialisation data.json:', error);
-    }
-  } else {
-    console.log('✅ data.json trouvé dans le volume persistant (données restaurées du redémarrage)');
+// Initialize data.json (avec fallback GitHub si manquant)
+let globalData = {};
+(async () => {
+  try {
+    globalData = await initializeData();
+  } catch (error) {
+    console.error('❌ Erreur initialisation globale:', error);
   }
-}
-
-initializeData();
+})();
 
 // Helper function to read data
 function readData() {
@@ -2018,6 +2009,9 @@ app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`📊 Database: JSON (data.json)`);
   console.log(`🔗 API: http://localhost:${PORT}/api`);
+  
+  // 🔄 Démarrer la sauvegarde périodique GitHub
+  gitBackupService.startPeriodicBackup();
 });
 
 export default app;

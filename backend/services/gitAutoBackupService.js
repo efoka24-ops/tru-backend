@@ -186,6 +186,27 @@ Environment: ${process.env.NODE_ENV || 'production'}
       };
     }
   }
+
+  /**
+   * Start periodic backup (toutes les 5 minutes)
+   */
+  startPeriodicBackup() {
+    if (process.env.GITHUB_TOKEN) {
+      console.log('🔄 Démarrage sauvegarde périodique (5 min)...');
+      
+      // Premier backup après 1 minute
+      setTimeout(() => {
+        this.autoCommit('PERIODIC_BACKUP', 'Synchronisation planifiée');
+      }, 60000);
+      
+      // Ensuite tous les 5 minutes
+      setInterval(() => {
+        this.autoCommit('PERIODIC_BACKUP', 'Synchronisation planifiée');
+      }, 5 * 60 * 1000);
+    } else {
+      console.warn('⚠️  GITHUB_TOKEN not set - periodic backup disabled');
+    }
+  }
 }
 
 // Export singleton
