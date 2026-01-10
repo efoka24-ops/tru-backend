@@ -59,6 +59,8 @@ export function useSettings() {
         if (now - cacheData.timestamp < CACHE_DURATION) {
           setSettings(cacheData.data);
           setLoading(false);
+          // Mais recharger quand même en arrière-plan
+          fetchSettings();
           return;
         }
       } catch (e) {
@@ -68,6 +70,10 @@ export function useSettings() {
     
     // Sinon, charger depuis le serveur
     fetchSettings();
+    
+    // Recharger les paramètres toutes les 10 secondes
+    const interval = setInterval(fetchSettings, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   // Écouter les changements de settings (broadcast depuis SettingsPage)

@@ -280,8 +280,8 @@
       ]
     }
   ],
-  "settings": [
-    {
+  "settings": {
+    "0": {
       "id": 1,
       "company_name": "TRU GROUP",
       "slogan": "Au cœur de l'innovation",
@@ -295,8 +295,16 @@
       "linkedin_url": "#",
       "twitter_url": "#",
       "maintenanceMode": false
-    }
-  ],
+    },
+    "siteTitle": "TRU GROUP",
+    "slogan": "Au cœur de l'innovation",
+    "email": "infos@trugroup.cm",
+    "phone": "+237678758976",
+    "address": "Garoua,Cameroun",
+    "updatedAt": "2026-01-10T19:10:42.798Z",
+    "tagline": "",
+    "description": ""
+  },
   "contacts": [
     {
       "id": 2,
@@ -375,6 +383,22 @@
       "appliedAt": "2025-12-09T18:17:15.416Z",
       "createdAt": "2025-12-09T18:17:15.429Z",
       "updatedAt": "2025-12-09T18:17:50.065Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": 1768071344306,
+      "name": "test",
+      "client": "eglise",
+      "description": "test",
+      "category": "Transformation digitale",
+      "status": "Réalisé",
+      "technologies": [
+        "test;test2"
+      ],
+      "details": "test",
+      "createdAt": "2026-01-10T18:55:44.306Z",
+      "updatedAt": "2026-01-10T18:56:35.840Z"
     }
   ]
 }

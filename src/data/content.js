@@ -8,7 +8,7 @@ export const siteSettings = {
   slogan: 'Au cœur de l\'innovation',
   phone: '+237 691 22 71 49',
   email: 'info@trugroup.cm',
-  address: 'Maroua, Cameroun',
+  address: 'Garoua, Cameroun',
   primary_color: '#22c55e',
   logo_url: logoUrl,
   facebook_url: '#',
@@ -201,5 +201,63 @@ export const team = [
     image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop',
     is_founder: false,
     specialties: ['Data Science', 'BI', 'Machine Learning']
+  }
+];
+
+// Projects - Projets réalisés pour les clients
+export const projects = [
+  {
+    id: 1,
+    name: 'MokineVeto',
+    client: 'Secteur Vétérinaire',
+    description: 'Solution de gestion pour cliniques vétérinaires',
+    category: 'Développement d\'apps',
+    status: 'Produit',
+    technologies: ['React', 'Node.js', 'PostgreSQL']
+  },
+  {
+    id: 2,
+    name: 'Mokine',
+    client: 'Secteur Santé',
+    description: 'Plateforme de gestion sanitaire intégrée',
+    category: 'Transformation digitale',
+    status: 'Produit',
+    technologies: ['React', 'Node.js', 'PostgreSQL']
+  },
+  {
+    id: 3,
+    name: 'MokineKid',
+    client: 'Secteur Éducation',
+    description: 'Plateforme de gestion éducative pour enfants',
+    category: 'Développement d\'apps',
+    status: 'Produit',
+    technologies: ['React', 'Node.js', 'PostgreSQL']
+  },
+  {
+    id: 4,
+    name: 'Portail de Gestion Administrative',
+    client: 'Collectivités Territoriales',
+    description: 'Solution de modernisation administrative pour collectivités',
+    category: 'Conseil & Organisation',
+    status: 'Réalisé',
+    technologies: ['React', 'API REST', 'PostgreSQL']
+  },
+  {
+    id: 5,
+    name: 'Système de Gestion des Ressources Humaines',
+    client: 'PME/Grandes Entreprises',
+    description: 'Plateforme SIRH complète pour gestion des talents',
+    category: 'Transformation digitale',
+    status: 'Réalisé',
+    technologies: ['React', 'Node.js', 'MongoDB']
+  },
+  {
+    id: 6,
+    name: 'ERP Intégré',
+    client: 'Groupe Commerce & Industrie',
+    description: 'Système de planification des ressources d\'entreprise',
+    category: 'Développement d\'apps',
+    status: 'Réalisé',
+    technologies: ['React', 'Node.js', 'PostgreSQL', 'Docker']
   }
 ];

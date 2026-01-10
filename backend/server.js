@@ -1787,6 +1787,143 @@ app.delete('/api/logs', (req, res) => {
   }
 });
 
+// ============= PROJECTS ROUTES =============
+
+// GET /api/projects - Récupérer tous les projets
+app.get('/api/projects', (req, res) => {
+  try {
+    const data = readData();
+    const projects = data.projects || [];
+    res.json(projects);
+  } catch (error) {
+    console.error('Erreur lors du chargement des projets:', error);
+    res.status(500).json({ error: 'Impossible de charger les projets' });
+  }
+});
+
+// GET /api/projects/:id - Récupérer un projet spécifique
+app.get('/api/projects/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = readData();
+    const projects = data.projects || [];
+    const project = projects.find(p => p.id == id);
+    
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    res.json(project);
+  } catch (error) {
+    console.error('Erreur lors du chargement du projet:', error);
+    res.status(500).json({ error: 'Impossible de charger le projet' });
+  }
+});
+
+// POST /api/projects - Créer un nouveau projet
+app.post('/api/projects', (req, res) => {
+  try {
+    const { name, client, description, category, status, technologies, details } = req.body;
+
+    if (!name || !client) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const data = readData();
+    const projects = data.projects || [];
+
+    const newProject = {
+      id: Date.now(),
+      name,
+      client,
+      description,
+      category,
+      status,
+      technologies: Array.isArray(technologies) ? technologies : [technologies].filter(Boolean),
+      details,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    projects.push(newProject);
+    data.projects = projects;
+    writeData(data);
+
+    console.log('✅ Project created:', newProject.id);
+    res.status(201).json(newProject);
+
+  } catch (error) {
+    console.error('Erreur lors de la création du projet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/projects/:id - Mettre à jour un projet
+app.put('/api/projects/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, client, description, category, status, technologies, details } = req.body;
+
+    const data = readData();
+    const projects = data.projects || [];
+    const projectIndex = projects.findIndex(p => p.id == id);
+
+    if (projectIndex === -1) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const updatedProject = {
+      ...projects[projectIndex],
+      name: name || projects[projectIndex].name,
+      client: client || projects[projectIndex].client,
+      description: description || projects[projectIndex].description,
+      category: category || projects[projectIndex].category,
+      status: status || projects[projectIndex].status,
+      technologies: technologies || projects[projectIndex].technologies,
+      details: details || projects[projectIndex].details,
+      updatedAt: new Date().toISOString()
+    };
+
+    projects[projectIndex] = updatedProject;
+    data.projects = projects;
+    writeData(data);
+
+    console.log('✅ Project updated:', id);
+    res.json(updatedProject);
+
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du projet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/projects/:id - Supprimer un projet
+app.delete('/api/projects/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const data = readData();
+    const projects = data.projects || [];
+    const projectIndex = projects.findIndex(p => p.id == id);
+
+    if (projectIndex === -1) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const deletedProject = projects[projectIndex];
+    projects.splice(projectIndex, 1);
+    data.projects = projects;
+    writeData(data);
+
+    console.log('✅ Project deleted:', id);
+    res.json({ message: 'Project deleted', project: deletedProject });
+
+  } catch (error) {
+    console.error('Erreur lors de la suppression du projet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============= 404 HANDLER =============
 
 app.use((req, res) => {

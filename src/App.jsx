@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Services from './pages/Services';
 import Solutions from './pages/Solutions';
+import Projects from './pages/Projects';
 import Team from './pages/Team';
 import Contact from './pages/Contact';
 import News from './pages/News';
@@ -53,6 +54,7 @@ function AppContent() {
       <Route path="/about" element={<Layout currentPageName="about"><About /></Layout>} />
       <Route path="/services" element={<Layout currentPageName="services"><Services /></Layout>} />
       <Route path="/solutions" element={<Layout currentPageName="solutions"><Solutions /></Layout>} />
+      <Route path="/projects" element={<Layout currentPageName="projects"><Projects /></Layout>} />
       <Route path="/team" element={<Layout currentPageName="team"><Team /></Layout>} />
       <Route path="/contact" element={<Layout currentPageName="contact"><Contact /></Layout>} />
       <Route path="/news" element={<Layout currentPageName="news"><News /></Layout>} />

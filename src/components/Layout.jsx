@@ -170,7 +170,7 @@ export default function Layout({ children, currentPageName }) {
                 </div>
               </div>
               <p className="text-slate-400 text-sm leading-relaxed">
-                {settings?.description || "Cabinet de conseil et d'ingénierie digitale dédié à la transformation numérique en Afrique."}
+                {settings?.description || "Cabinet de conseil et d'ingénierie digitale."}
               </p>
             </div>
 
@@ -192,6 +192,7 @@ export default function Layout({ children, currentPageName }) {
                 <li><Link to={createPageUrl('solutions')} className="hover:text-green-400 transition-colors">MokineVeto</Link></li>
                 <li><Link to={createPageUrl('solutions')} className="hover:text-green-400 transition-colors">Mokine</Link></li>
                 <li><Link to={createPageUrl('solutions')} className="hover:text-green-400 transition-colors">MokineKid</Link></li>
+                <li><Link to={createPageUrl('projects')} className="hover:text-green-400 transition-colors">Projets réalisés</Link></li>
               </ul>
             </div>
 
