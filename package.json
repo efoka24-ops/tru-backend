@@ -10,20 +10,21 @@
     "start": "cd backend && npm install && DATA_DIR=/opt/render/project/src/backend node server.js"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.32.0",
+    "framer-motion": "^10.16.16",
+    "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.18.0",
-    "framer-motion": "^10.16.16",
-    "lucide-react": "^0.294.0",
-    "@tanstack/react-query": "^5.32.0"
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.0.8",
-    "tailwindcss": "^3.3.6",
+    "autoprefixer": "^10.4.16",
     "postcss": "^8.4.31",
-    "autoprefixer": "^10.4.16"
+    "tailwindcss": "^3.3.6",
+    "vite": "^5.0.8"
   }
 }
