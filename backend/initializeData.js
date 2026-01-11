@@ -29,9 +29,9 @@ async function downloadFromGithub() {
   try {
     console.log('⬇️  Téléchargement de data.json depuis GitHub...');
     
-    const repo = 'efoka24-ops/tru-website';
+    const repo = 'efoka24-ops/tru-backend';
     const branch = 'main';
-    const filePath = 'backend/data.json';
+    const filePath = 'data.json';
     
     const url = `https://raw.githubusercontent.com/${repo}/${branch}/${filePath}`;
     
