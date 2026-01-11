@@ -1682,7 +1682,7 @@ app.delete('/api/services/:id', (req, res) => {
 
 // Configuration dynamique
 const config = {
-  imageSizeLimit: 250 * 1024 // 250KB par défaut
+  imageSizeLimit: 500 * 1024 // 500KB max pour les images base64
 };
 
 // POST /api/config/increase-image-limit - Augmenter la limite d'image
