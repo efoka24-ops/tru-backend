@@ -287,7 +287,7 @@ app.post('/api/auth/login', (req, res) => {
     
     // Mettre à jour lastLogin
     account.lastLogin = new Date().toISOString();
-    writeData(data);
+    writeDataAndBackup(data, 'LOGIN_UPDATE', `User login: ${account.email}`);
     
     // Récupérer les infos du membre
     const member = data.team?.find(t => t.id === account.memberId);
@@ -364,7 +364,7 @@ app.post('/api/auth/login-code', (req, res) => {
     account.loginCodeExpiry = null;
     account.status = 'active';
     account.lastLogin = new Date().toISOString();
-    writeData(data);
+    writeDataAndBackup(data, 'FIRST_LOGIN_PASSWORD', `First login & password set: ${account.email}`);
     
     // Générer JWT
     const token = generateJWT({
@@ -435,7 +435,7 @@ app.post('/api/auth/change-password', verifyToken, (req, res) => {
     // Mettre à jour le mot de passe
     account.passwordHash = hashPassword(newPassword);
     account.updatedAt = new Date().toISOString();
-    writeData(data);
+    writeDataAndBackup(data, 'CHANGE_PASSWORD', `Password changed: ${account.email}`);
     
     res.json({
       success: true,
@@ -523,7 +523,7 @@ app.put('/api/members/:id/profile', verifyToken, requireOwnProfile, (req, res) =
     if (specialties !== undefined) member.specialties = specialties;
     if (certifications !== undefined) member.certifications = certifications;
     
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_PROFILE', `Profile updated: ${member.name}`);
     
     res.json({
       success: true,
@@ -559,7 +559,7 @@ app.put('/api/members/:id/photo', verifyToken, requireOwnProfile, upload.single(
       member.image = req.body.photoUrl;
     }
     
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_PHOTO', `Photo updated: ${member.name}`);
     
     res.json({
       success: true,
@@ -722,7 +722,7 @@ app.post('/api/admin/members/:id/account', verifyToken, requireAdmin, (req, res)
     // Mettre à jour l'email du membre
     member.email = email;
     
-    writeData(data);
+    writeDataAndBackup(data, 'CREATE_ACCOUNT', `Account created: ${email} for ${member.name}`);
     
     res.json({
       success: true,
@@ -759,7 +759,7 @@ app.post('/api/admin/members/:id/login-code', verifyToken, requireAdmin, (req, r
     account.loginCodeExpiry = getExpiryDate(24).toISOString();
     account.updatedAt = new Date().toISOString();
     
-    writeData(data);
+    writeDataAndBackup(data, 'GENERATE_LOGIN_CODE', `Login code generated: ${account.email}`);
     
     res.json({
       success: true,
@@ -804,7 +804,7 @@ app.put('/api/admin/members/:id/account', verifyToken, requireAdmin, (req, res) 
     }
     
     account.updatedAt = new Date().toISOString();
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_ACCOUNT', `Account updated: ${account.email}`);
     
     res.json({
       success: true,
@@ -837,7 +837,7 @@ app.delete('/api/admin/members/:id/account', verifyToken, requireAdmin, (req, re
     const removedAccount = data.memberAccounts[accountIndex];
     data.memberAccounts.splice(accountIndex, 1);
     
-    writeData(data);
+    writeDataAndBackup(data, 'DELETE_ACCOUNT', `Account deleted: ${removedAccount.email}`);
     
     res.json({
       success: true,
@@ -1071,7 +1071,7 @@ app.post('/api/testimonials', upload.single('image'), (req, res) => {
     };
 
     data.testimonials.push(testimonial);
-    writeData(data);
+    writeDataAndBackup(data, 'ADD_TESTIMONIAL', `Testimonial added: ${testimonial.name}`);
     res.status(201).json(testimonial);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1104,7 +1104,7 @@ app.put('/api/testimonials/:id', upload.single('image'), (req, res) => {
       image: imageUrl
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_TESTIMONIAL', `Testimonial updated: ${data.testimonials[index].name}`);
     res.json(data.testimonials[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1119,7 +1119,7 @@ app.delete('/api/testimonials/:id', (req, res) => {
     if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
 
     const deleted = data.testimonials.splice(index, 1);
-    writeData(data);
+    writeDataAndBackup(data, 'DELETE_TESTIMONIAL', `Testimonial deleted: ${deleted[0].name}`);
     res.json(deleted[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1162,7 +1162,7 @@ app.post('/api/news', upload.single('image'), (req, res) => {
     };
 
     data.news.push(news);
-    writeData(data);
+    writeDataAndBackup(data, 'ADD_NEWS', `News added: ${news.title}`);
     res.status(201).json(news);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1193,7 +1193,7 @@ app.put('/api/news/:id', upload.single('image'), (req, res) => {
       image: imageUrl
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_NEWS', `News updated: ${data.news[index].title}`);
     res.json(data.news[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1208,7 +1208,7 @@ app.delete('/api/news/:id', (req, res) => {
     if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
 
     const deleted = data.news.splice(index, 1);
-    writeData(data);
+    writeDataAndBackup(data, 'DELETE_NEWS', `News deleted: ${deleted[0].title}`);
     res.json(deleted[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1260,7 +1260,7 @@ app.post('/api/solutions', upload.single('image'), (req, res) => {
     };
 
     data.solutions.push(solution);
-    writeData(data);
+    writeDataAndBackup(data, 'ADD_SOLUTION', `Solution added: ${solution.name}`);
     res.status(201).json(solution);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1301,7 +1301,7 @@ app.put('/api/solutions/:id', upload.single('image'), (req, res) => {
       benefits: benefits
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_SOLUTION', `Solution updated: ${data.solutions[index].name}`);
     res.json(data.solutions[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1316,7 +1316,7 @@ app.delete('/api/solutions/:id', (req, res) => {
     if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
 
     const deleted = data.solutions.splice(index, 1);
-    writeData(data);
+    writeDataAndBackup(data, 'DELETE_SOLUTION', `Solution deleted: ${deleted[0].name}`);
     res.json(deleted[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1352,7 +1352,7 @@ app.post('/api/jobs', (req, res) => {
     };
 
     data.jobs.push(job);
-    writeData(data);
+    writeDataAndBackup(data, 'ADD_JOB', `Job posted: ${job.title}`);
     res.status(201).json(job);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1377,7 +1377,7 @@ app.put('/api/jobs/:id', (req, res) => {
       salaryRange: req.body.salaryRange !== undefined ? req.body.salaryRange : data.jobs[index].salaryRange
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_JOB', `Job updated: ${data.jobs[index].title}`);
     res.json(data.jobs[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1392,7 +1392,7 @@ app.delete('/api/jobs/:id', (req, res) => {
     if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
 
     const deleted = data.jobs.splice(index, 1);
-    writeData(data);
+    writeDataAndBackup(data, 'DELETE_JOB', `Job deleted: ${deleted[0].title}`);
     res.json(deleted[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1432,7 +1432,7 @@ app.post('/api/applications', (req, res) => {
     };
 
     data.applications.push(application);
-    writeData(data);
+    writeDataAndBackup(data, 'ADD_APPLICATION', `Application submitted: ${application.fullName} for ${application.jobTitle}`);
     res.status(201).json(application);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1452,7 +1452,7 @@ app.put('/api/applications/:id', (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_APPLICATION', `Application updated: ${data.applications[index].fullName} - ${req.body.status}`);
     res.json(data.applications[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1467,7 +1467,7 @@ app.delete('/api/applications/:id', (req, res) => {
     if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
 
     const deleted = data.applications.splice(index, 1);
-    writeData(data);
+    writeDataAndBackup(data, 'DELETE_APPLICATION', `Application deleted: ${deleted[0].fullName}`);
     res.json(deleted[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1502,7 +1502,7 @@ app.post('/api/contacts', (req, res) => {
     };
 
     data.contacts.push(contact);
-    writeData(data);
+    writeDataAndBackup(data, 'ADD_CONTACT', `Contact added: ${contact.fullName}`);
     res.status(201).json(contact);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1524,7 +1524,7 @@ app.put('/api/contacts/:id', (req, res) => {
       replyMethod: req.body.replyMethod || data.contacts[index].replyMethod
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_CONTACT', `Contact updated: ${data.contacts[index].fullName}`);
     res.json(data.contacts[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1547,7 +1547,7 @@ app.post('/api/contacts/reply', (req, res) => {
       replyDate: new Date().toISOString()
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'REPLY_CONTACT', `Reply sent to: ${data.contacts[index].fullName}`);
     res.json({ success: true, contact: data.contacts[index] });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1562,7 +1562,7 @@ app.delete('/api/contacts/:id', (req, res) => {
     if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
 
     const deleted = data.contacts.splice(index, 1);
-    writeData(data);
+    writeDataAndBackup(data, 'DELETE_CONTACT', `Contact deleted: ${deleted[0].fullName}`);
     res.json(deleted[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1601,7 +1601,7 @@ app.put('/api/settings', (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_SETTINGS', `Settings updated: ${siteTitle}`);
     res.json(data.settings);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1634,7 +1634,7 @@ app.post('/api/services', (req, res) => {
     };
 
     data.services.push(service);
-    writeData(data);
+    writeDataAndBackup(data, 'ADD_SERVICE', `Service added: ${service.name}`);
     res.status(201).json(service);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1656,7 +1656,7 @@ app.put('/api/services/:id', (req, res) => {
       price: req.body.price !== undefined ? req.body.price : data.services[index].price
     };
 
-    writeData(data);
+    writeDataAndBackup(data, 'UPDATE_SERVICE', `Service updated: ${data.services[index].name}`);
     res.json(data.services[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1671,7 +1671,7 @@ app.delete('/api/services/:id', (req, res) => {
     if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
 
     const deleted = data.services.splice(index, 1);
-    writeData(data);
+    writeDataAndBackup(data, 'DELETE_SERVICE', `Service deleted: ${deleted[0].name}`);
     res.json(deleted[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });

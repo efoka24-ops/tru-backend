@@ -8,15 +8,24 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
 const execPromise = promisify(exec);
 
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 🔵 Use persistent volume if available, otherwise use local
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+const DATA_FILE = 'data.json';
+
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_REPO = 'efoka24-ops/tru-backend';
 const GITHUB_BRANCH = 'main';
-const DATA_FILE = 'backend/data.json';
 
 class GitAutoBackupService {
   constructor() {
@@ -57,7 +66,7 @@ class GitAutoBackupService {
       await this.execGit('config user.name "TRU Backend Auto-Backup"');
 
       // Check if file is changed
-      const { stdout: status } = await this.execGit('status --porcelain backend/data.json');
+      const { stdout: status } = await this.execGit('status --porcelain data.json');
       
       if (!status.trim()) {
         console.log('✅ No changes to commit');
@@ -66,7 +75,7 @@ class GitAutoBackupService {
       }
 
       // Add file
-      await this.execGit('add backend/data.json');
+      await this.execGit('add data.json');
 
       // Create commit message
       const timestamp = new Date().toISOString();
@@ -114,7 +123,7 @@ Environment: ${process.env.NODE_ENV || 'production'}
    */
   async execGit(command, hideOutput = false) {
     try {
-      const fullCommand = `cd "${process.cwd()}" && git ${command}`;
+      const fullCommand = `cd "${DATA_DIR}" && git ${command}`;
       
       if (!hideOutput) {
         console.log(`🔧 Git: ${command}`);

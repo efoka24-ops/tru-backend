@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "cd backend && npm install && node server.js"
+    "start": "cd backend && npm install && DATA_DIR=/opt/render/project/src/backend node server.js"
   },
   "dependencies": {
     "react": "^18.2.0",
