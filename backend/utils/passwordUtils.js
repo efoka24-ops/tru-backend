@@ -2,6 +2,9 @@
 // Utilitaires pour gestion des mots de passe
 
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Générer un hash simple (en production, utiliser bcrypt)
 export function hashPassword(password) {
@@ -28,8 +31,11 @@ export function comparePassword(password, hash) {
   return newHash === hash;
 }
 
+// Secret JWT depuis .env (IMPORTANT: doit correspondre à auth.js)
+const JWT_SECRET = process.env.JWT_SECRET || 'tru_jwt_secret_key_2025';
+
 // Générer un JWT simple
-export function generateJWT(payload, secret = 'tru_jwt_secret_key_2025', expiresIn = '24h') {
+export function generateJWT(payload, secret = JWT_SECRET, expiresIn = '24h') {
   const header = {
     alg: 'HS256',
     typ: 'JWT'
@@ -56,7 +62,7 @@ export function generateJWT(payload, secret = 'tru_jwt_secret_key_2025', expires
 }
 
 // Vérifier JWT
-export function verifyJWT(token, secret = 'tru_jwt_secret_key_2025') {
+export function verifyJWT(token, secret = JWT_SECRET) {
   try {
     const [headerEncoded, bodyEncoded, signatureProvided] = token.split('.');
     

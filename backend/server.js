@@ -8,10 +8,12 @@ import { fileURLToPath } from 'url';
 import { hashPassword, comparePassword, generateJWT, verifyJWT } from './utils/passwordUtils.js';
 import { generateLoginCode, getExpiryDate, isCodeExpired } from './utils/codeGenerator.js';
 import { verifyToken, requireAdmin, requireMember, requireOwnProfile } from './middleware/auth.js';
-import gitBackupService from './services/gitAutoBackupService.js';
-import initializeData from './initializeData.js';
-import DataManager from './dataManager.js';
-import * as db from './databaseService.js';
+// import gitBackupService from './services/gitAutoBackupService.js'; // DÉSACTIVÉ - Supabase uniquement
+// import initializeData from './initializeData.js'; // DÉSACTIVÉ - Supabase uniquement
+// import DataManager from './dataManager.js'; // DÉSACTIVÉ - Supabase uniquement
+// import * as db from './databaseService.js'; // DÉSACTIVÉ - On utilise Supabase
+import authRoutes from './routes/auth.js';
+import * as supabase from './lib/supabase.js';
 
 dotenv.config();
 
@@ -32,67 +34,48 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Initialize data.json (avec fallback GitHub si manquant)
-let globalData = {};
+// Initialize from Supabase (plus de data.json)
+console.log('🔄 Connexion à Supabase...');
+
+// Test de connexion Supabase
 (async () => {
   try {
-    // Initialize database tables on startup
-    await db.initializeDatabase();
-    console.log('✅ Database tables initialized');
+    const health = await supabase.healthCheck();
+    console.log('✅ Supabase connecté:', health.message);
     
-    globalData = await initializeData();
-    // Vérifier l'intégrité au démarrage
-    DataManager.checkIntegrity();
-    
-    // Auto-migrate data.json → PostgreSQL on first startup (if needed)
-    if (process.env.NODE_ENV === 'production') {
-      console.log('🔄 Checking if migration is needed...');
-      const hasTeam = await db.getTeamMembers();
-      if (!hasTeam || hasTeam.length === 0) {
-        console.log('⏳ Auto-running migration: data.json → PostgreSQL');
-        await migrateDataToPG(globalData);
-      }
-    }
+    // Charger un échantillon de données pour vérifier
+    const teamCount = await supabase.team.getAll();
+    const servicesCount = await supabase.services.getAll();
+    console.log(`📊 Données Supabase: ${teamCount?.length || 0} membres, ${servicesCount?.length || 0} services`);
   } catch (error) {
-    console.error('❌ Erreur initialisation globale:', error);
+    console.error('❌ Erreur connexion Supabase:', error.message);
   }
 })();
 
-// Helper function to read data
-function readData() {
-  return DataManager.readData();
-}
+// Helper functions pour Supabase (remplace readData/writeData)
+// Toutes les opérations passent maintenant par Supabase directement
+// Plus besoin de readData() et writeData() car les routes utilisent supabase.*
 
-// Helper function to write data with atomic protection
-function writeData(data) {
-  return DataManager.writeData(data);
-}
-
-// Helper function to write data AND backup to GitHub
+// Helper function to write data AND backup to GitHub (DÉSACTIVÉ - Supabase uniquement)
 async function writeDataAndBackup(data, action, details = '') {
   // Write locally first
   const writeOk = writeData(data);
   
-  // Also sync to PostgreSQL if available
-  try {
-    await syncDataToPG(data);
-  } catch (err) {
-    console.warn('⚠️  PostgreSQL sync warning:', err.message);
-  }
-  
+  /* DÉSACTIVÉ - Plus de backup GitHub
   if (writeOk && process.env.GITHUB_TOKEN) {
-    // Auto-backup to GitHub (async, doesn't block)
     gitBackupService.autoCommit(action, details).catch(err => {
       console.error('Backup error (non-blocking):', err.message);
     });
   }
+  */
   
   return writeOk;
 }
 
-/**
- * Sync all data to PostgreSQL
- */
+/* ============================================
+   DÉSACTIVÉ - Sync PostgreSQL (On utilise Supabase)
+   ============================================
+
 async function syncDataToPG(data) {
   try {
     // Sync Team
@@ -145,9 +128,7 @@ async function syncDataToPG(data) {
   }
 }
 
-/**
- * Migrate all data from data.json to PostgreSQL (auto-run on startup)
- */
+// Migrate all data from data.json to PostgreSQL (auto-run on startup)
 async function migrateDataToPG(data) {
   try {
     console.log('🔄 Starting automatic migration to PostgreSQL...');
@@ -157,7 +138,44 @@ async function migrateDataToPG(data) {
     console.error('❌ Migration error:', err);
   }
 }
+*/
 
+// Helper functions for reading/writing data.json (for jobs and other legacy features)
+function readData() {
+  try {
+    if (!fs.existsSync(DATA_FILE)) {
+      // Create default data.json if it doesn't exist
+      const defaultData = {
+        users: [],
+        services: [],
+        team: [],
+        solutions: [],
+        testimonials: [],
+        jobs: [],
+        applications: [],
+        contacts: [],
+        settings: {}
+      };
+      fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2));
+      return defaultData;
+    }
+    const content = fs.readFileSync(DATA_FILE, 'utf8');
+    return JSON.parse(content);
+  } catch (error) {
+    console.error('Error reading data.json:', error.message);
+    return { users: [], services: [], team: [], solutions: [], testimonials: [], jobs: [], applications: [], contacts: [], settings: {} };
+  }
+}
+
+function writeData(data) {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing data.json:', error.message);
+    return false;
+  }
+}
 
 console.log('📧 Backend server starting on port', PORT);
 
@@ -309,8 +327,13 @@ app.post('/api/image', express.json({ limit: '10mb' }), (req, res) => {
 
 // ============= AUTHENTICATION ROUTES =============
 
+// 🟢 SUPABASE AUTH ROUTES (nouvelles routes avec Supabase)
+app.use('/api/auth', authRoutes);
+
+// 🔴 ANCIENNES ROUTES (avec data.memberAccounts) - À SUPPRIMER APRÈS MIGRATION
+/*
 // 1. LOGIN avec email + password
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login-old', (req, res) => {
   try {
     const { email, password } = req.body;
     
@@ -516,6 +539,7 @@ app.post('/api/auth/change-password', verifyToken, (req, res) => {
     res.status(500).json({ error: 'Failed to change password' });
   }
 });
+*/
 
 // ============= MEMBER PROFILE ROUTES =============
 
@@ -924,21 +948,132 @@ app.delete('/api/admin/members/:id/account', verifyToken, requireAdmin, (req, re
 
 // ============= TEAM ROUTES =============
 
-app.get('/api/team', (req, res) => {
+const TEAM_PHOTO_BUCKET = process.env.SUPABASE_TEAM_PHOTO_BUCKET || 'team-photos';
+
+const parseJsonValue = (value, fallback) => {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return fallback;
   try {
-    const data = readData();
-    res.json(data.team || []);
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeArrayValue = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = parseJsonValue(value, []);
+    return Array.isArray(parsed) ? parsed : [];
+  }
+  return [];
+};
+
+const buildSocialLinks = (body, existingLinks = {}) => {
+  const baseLinks = parseJsonValue(existingLinks, {});
+  const expertise = normalizeArrayValue(body.expertise ?? body.specialties ?? baseLinks.expertise ?? baseLinks.specialties ?? []);
+  const achievements = normalizeArrayValue(body.achievements ?? body.certifications ?? baseLinks.achievements ?? baseLinks.certifications ?? []);
+
+  console.log('🔧 buildSocialLinks input:', { 
+    body_expertise: body.expertise,
+    body_achievements: body.achievements,
+    result_expertise: expertise,
+    result_achievements: achievements
+  });
+
+  return {
+    ...baseLinks,
+    linkedin: body.linkedin ?? body.linked_in ?? baseLinks.linkedin ?? baseLinks.linked_in ?? null,
+    expertise,
+    achievements,
+    is_founder: body.is_founder ?? baseLinks.is_founder ?? false,
+    is_visible: body.is_visible ?? baseLinks.is_visible ?? true
+  };
+};
+
+const buildTeamResponse = (member) => {
+  const socialLinks = parseJsonValue(member.social_links, {});
+  return {
+    ...member,
+    title: member.title || member.role || '',
+    role: member.role || member.title || '',
+    description: member.description || member.bio || '',
+    bio: member.bio || member.description || '',
+    image: member.image || member.photo_url || null,
+    photo_url: member.photo_url || member.image || null,
+    linkedin: socialLinks.linkedin || member.linked_in || null,
+    expertise: normalizeArrayValue(socialLinks.expertise || member.expertise || []),
+    achievements: normalizeArrayValue(socialLinks.achievements || member.achievements || []),
+    specialties: normalizeArrayValue(socialLinks.expertise || member.specialties || []),
+    certifications: normalizeArrayValue(socialLinks.achievements || member.certifications || []),
+    is_founder: socialLinks.is_founder ?? member.is_founder ?? false,
+    is_visible: socialLinks.is_visible ?? member.is_visible ?? true,
+    display_order: member.display_order ?? member.ordering ?? 0
+  };
+};
+
+app.post('/api/uploads/team-photo', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier fourni' });
+    }
+
+    const ext = path.extname(req.file.originalname || '').toLowerCase();
+    const safeExt = /^\.[a-z0-9]+$/i.test(ext) ? ext : '.jpg';
+    const filePath = `team/${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExt}`;
+
+    const { error } = await supabase.storage
+      .from(TEAM_PHOTO_BUCKET)
+      .upload(filePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from(TEAM_PHOTO_BUCKET)
+      .getPublicUrl(filePath);
+
+    res.json({ url: publicData.publicUrl, path: filePath });
+  } catch (error) {
+    console.error('Erreur upload photo equipe:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/team', async (req, res) => {
+  try {
+    const team = await supabase.team.getAll();
+    const mapped = (team || []).map(buildTeamResponse);
+    res.json(mapped);
   } catch (error) {
     console.error('Erreur récupération équipe:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/team', upload.single('image'), (req, res) => {
+app.get('/api/team/:id', async (req, res) => {
+  try {
+    const member = await supabase.team.getById(req.params.id);
+    if (!member) {
+      return res.status(404).json({ error: 'Membre non trouvé' });
+    }
+    res.json(buildTeamResponse(member));
+  } catch (error) {
+    console.error('Erreur récupération membre:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/team', upload.single('image'), async (req, res) => {
   try {
     console.log('➕ POST /api/team', req.body);
     
-    let imageUrl = null;
+    let imageUrl = req.body.photo_url || null;
     if (req.file) {
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
@@ -949,84 +1084,48 @@ app.post('/api/team', upload.single('image'), (req, res) => {
       imageUrl = req.body.image;
     }
 
-    let specialties = [];
-    if (req.body.specialties) {
-      if (typeof req.body.specialties === 'string') {
-        try {
-          specialties = JSON.parse(req.body.specialties);
-        } catch (e) {
-          specialties = [req.body.specialties];
-        }
-      } else if (Array.isArray(req.body.specialties)) {
-        specialties = req.body.specialties;
-      }
-    }
-
-    let certifications = [];
-    if (req.body.certifications) {
-      if (typeof req.body.certifications === 'string') {
-        try {
-          certifications = JSON.parse(req.body.certifications);
-        } catch (e) {
-          certifications = [req.body.certifications];
-        }
-      } else if (Array.isArray(req.body.certifications)) {
-        certifications = req.body.certifications;
-      }
-    }
-
-    const data = readData();
-    
-    // Utiliser l'ID fourni ou générer un nouveau
-    let newId = req.body.id;
-    if (!newId) {
-      newId = Math.max(0, ...data.team.map(t => t.id)) + 1;
-    } else {
-      // Vérifier que cet ID n'existe pas déjà
-      if (data.team.find(t => t.id == newId)) {
-        return res.status(400).json({ error: `ID ${newId} déjà existant` });
-      }
-    }
+    const socialLinks = buildSocialLinks(req.body, {});
+    const orderingValue = req.body.display_order ?? req.body.ordering;
 
     const member = {
-      id: newId,
       name: req.body.name,
-      title: req.body.title,
-      bio: req.body.bio,
-      image: imageUrl,
-      email: req.body.email,
-      phone: req.body.phone,
-      specialties: specialties,
-      certifications: certifications,
-      linked_in: req.body.linked_in || '',
-      is_founder: req.body.is_founder === 'true' || req.body.is_founder === true
+      role: req.body.role || req.body.title || null,
+      department: req.body.department || null,
+      bio: req.body.bio ?? req.body.description ?? null,
+      photo_url: imageUrl,
+      email: req.body.email || null,
+      phone: req.body.phone || null,
+      social_links: socialLinks,
+      ordering: orderingValue ?? null
     };
 
-    data.team.push(member);
-    writeDataAndBackup(data, 'ADD_TEAM_MEMBER', `Added: ${member.name}`);
-    console.log('✅ Team member created:', member);
+    if (member.ordering === null) {
+      delete member.ordering;
+    }
 
-    res.status(201).json(member);
+    const newMember = await supabase.team.create(member);
+    console.log('✅ Team member created:', newMember);
+
+    res.status(201).json(buildTeamResponse(newMember));
   } catch (error) {
     console.error('Erreur création équipe:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/team/:id', upload.single('image'), (req, res) => {
+app.put('/api/team/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`🔄 PUT /api/team/${id}`, req.body);
     
-    const data = readData();
-    const memberIndex = data.team.findIndex(t => t.id == id);
-
-    if (memberIndex === -1) {
+    // Get existing member
+    const existingMember = await supabase.team.getById(id);
+    if (!existingMember) {
       console.warn(`❌ Membre non trouvé: ${id}`);
       return res.status(404).json({ error: 'Membre non trouvé' });
     }
 
-    let imageUrl = data.team[memberIndex].image;
+    let imageUrl = req.body.photo_url || existingMember.photo_url || existingMember.image || null;
     if (req.file) {
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
@@ -1037,90 +1136,63 @@ app.put('/api/team/:id', upload.single('image'), (req, res) => {
       imageUrl = req.body.image;
     }
 
-    let specialties = data.team[memberIndex].specialties || [];
-    if (req.body.specialties) {
-      if (typeof req.body.specialties === 'string') {
-        try {
-          specialties = JSON.parse(req.body.specialties);
-        } catch (e) {
-          specialties = [req.body.specialties];
-        }
-      } else if (Array.isArray(req.body.specialties)) {
-        specialties = req.body.specialties;
-      }
-    }
+    const socialLinks = buildSocialLinks(req.body, existingMember.social_links);
+    const orderingValue = req.body.display_order ?? req.body.ordering ?? existingMember.ordering;
 
-    let certifications = data.team[memberIndex].certifications || [];
-    if (req.body.certifications) {
-      if (typeof req.body.certifications === 'string') {
-        try {
-          certifications = JSON.parse(req.body.certifications);
-        } catch (e) {
-          certifications = [req.body.certifications];
-        }
-      } else if (Array.isArray(req.body.certifications)) {
-        certifications = req.body.certifications;
-      }
-    }
-
-    data.team[memberIndex] = {
-      ...data.team[memberIndex],
-      name: req.body.name || data.team[memberIndex].name,
-      title: req.body.title || data.team[memberIndex].title,
-      bio: req.body.bio !== undefined ? req.body.bio : data.team[memberIndex].bio,
-      image: imageUrl,
-      email: req.body.email || data.team[memberIndex].email,
-      phone: req.body.phone || data.team[memberIndex].phone,
-      specialties: specialties,
-      certifications: certifications,
-      linked_in: req.body.linked_in !== undefined ? req.body.linked_in : data.team[memberIndex].linked_in,
-      is_founder: req.body.is_founder !== undefined ? (req.body.is_founder === 'true' || req.body.is_founder === true) : data.team[memberIndex].is_founder
+    const updateData = {
+      name: req.body.name || existingMember.name,
+      role: req.body.role || req.body.title || existingMember.role || null,
+      department: req.body.department || existingMember.department || null,
+      bio: req.body.bio !== undefined ? req.body.bio : (req.body.description ?? existingMember.bio),
+      photo_url: imageUrl,
+      email: req.body.email || existingMember.email || null,
+      phone: req.body.phone || existingMember.phone || null,
+      social_links: socialLinks,
+      ordering: orderingValue
     };
 
-    writeDataAndBackup(data, 'UPDATE_TEAM_MEMBER', `Updated: ${data.team[memberIndex].name}`);
-    console.log('✅ Team member updated:', data.team[memberIndex]);
-    res.json(data.team[memberIndex]);
+    const updatedMember = await supabase.team.update(id, updateData);
+    console.log('✅ Team member updated:', updatedMember);
+    res.json(buildTeamResponse(updatedMember));
   } catch (error) {
     console.error('Erreur mise à jour équipe:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/team/:id', (req, res) => {
+app.delete('/api/team/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const memberIndex = data.team.findIndex(t => t.id == id);
-
-    if (memberIndex === -1) {
+    
+    // Get member before deleting for response
+    const member = await supabase.team.getById(id);
+    if (!member) {
       return res.status(404).json({ error: 'Membre non trouvé' });
     }
 
-    const deleted = data.team.splice(memberIndex, 1);
-    writeDataAndBackup(data, 'DELETE_TEAM_MEMBER', `Deleted: ${deleted[0].name}`);
-    res.json(deleted[0]);
+    await supabase.team.delete(id);
+    console.log('✅ Team member deleted:', member.name);
+    res.json(member);
   } catch (error) {
     console.error('Erreur suppression équipe:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ============= TESTIMONIALS ROUTES =============
+// ============= TESTIMONIALS (TEMOIGNAGES) ROUTES =============
 
-app.get('/api/testimonials', (req, res) => {
+app.get('/api/testimonials', async (req, res) => {
   try {
-    const data = readData();
-    res.json(data.testimonials || []);
+    const temoignages = await supabase.temoignages.getAll();
+    res.json(temoignages || []);
   } catch (error) {
+    console.error('Erreur récupération temoignages:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/testimonials', upload.single('image'), (req, res) => {
+app.post('/api/testimonials', upload.single('image'), async (req, res) => {
   try {
-    const data = readData();
-    const newId = Math.max(0, ...data.testimonials.map(t => t.id)) + 1;
-
     let imageUrl = null;
     if (req.file) {
       const base64 = req.file.buffer.toString('base64');
@@ -1129,89 +1201,90 @@ app.post('/api/testimonials', upload.single('image'), (req, res) => {
       imageUrl = req.body.image;
     }
 
-    const testimonial = {
-      id: newId,
+    const temoignageData = {
       name: req.body.name,
       title: req.body.title,
       company: req.body.company,
-      testimonial: req.body.testimonial,
+      message: req.body.testimonial || req.body.message,
       rating: parseInt(req.body.rating) || 5,
-      image: imageUrl,
-      createdAt: new Date().toISOString()
+      image_url: imageUrl,
+      published: true
     };
 
-    data.testimonials.push(testimonial);
-    writeDataAndBackup(data, 'ADD_TESTIMONIAL', `Testimonial added: ${testimonial.name}`);
-    res.status(201).json(testimonial);
+    const temoignage = await supabase.temoignages.create(temoignageData);
+    console.log('✅ Temoignage créé:', temoignage.name);
+    res.status(201).json(temoignage);
   } catch (error) {
+    console.error('Erreur création temoignage:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/testimonials/:id', upload.single('image'), (req, res) => {
+app.put('/api/testimonials/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const index = data.testimonials.findIndex(t => t.id == id);
-
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
-
-    let imageUrl = data.testimonials[index].image;
+    
+    let imageUrl = req.body.image_url || req.body.image;
     if (req.file) {
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
-    } else if (req.body.image && req.body.image.startsWith('data:')) {
-      imageUrl = req.body.image;
     }
 
-    data.testimonials[index] = {
-      ...data.testimonials[index],
-      name: req.body.name || data.testimonials[index].name,
-      title: req.body.title !== undefined ? req.body.title : data.testimonials[index].title,
-      company: req.body.company !== undefined ? req.body.company : data.testimonials[index].company,
-      testimonial: req.body.testimonial !== undefined ? req.body.testimonial : data.testimonials[index].testimonial,
-      rating: req.body.rating !== undefined ? parseInt(req.body.rating) : data.testimonials[index].rating,
-      image: imageUrl
+    const temoignageData = {
+      name: req.body.name,
+      title: req.body.title,
+      company: req.body.company,
+      message: req.body.testimonial || req.body.message,
+      rating: parseInt(req.body.rating) || 5,
+      image_url: imageUrl,
+      published: req.body.published !== undefined ? req.body.published : true
     };
 
-    writeDataAndBackup(data, 'UPDATE_TESTIMONIAL', `Testimonial updated: ${data.testimonials[index].name}`);
-    res.json(data.testimonials[index]);
+    const temoignage = await supabase.temoignages.update(id, temoignageData);
+    console.log('✅ Temoignage mis à jour:', temoignage.name);
+    res.json(temoignage);
   } catch (error) {
+    console.error('Erreur mise à jour temoignage:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/testimonials/:id', (req, res) => {
+app.delete('/api/testimonials/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const index = data.testimonials.findIndex(t => t.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
-
-    const deleted = data.testimonials.splice(index, 1);
-    writeDataAndBackup(data, 'DELETE_TESTIMONIAL', `Testimonial deleted: ${deleted[0].name}`);
-    res.json(deleted[0]);
+    const result = await supabase.temoignages.delete(id);
+    console.log('✅ Temoignage supprimé:', id);
+    res.json(result);
   } catch (error) {
+    console.error('Erreur suppression temoignage:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ============= NEWS ROUTES =============
+// ============= NEWS (ACTUALITE) ROUTES =============
 
-app.get('/api/news', (req, res) => {
+app.get('/api/news', async (req, res) => {
   try {
-    const data = readData();
-    res.json(data.news || []);
+    const news = await supabase.actualite.getAll();
+    res.json(news || []);
   } catch (error) {
+    console.error('Erreur récupération actualites:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/news', upload.single('image'), (req, res) => {
+app.get('/api/actualite', async (req, res) => {
   try {
-    const data = readData();
-    const newId = Math.max(0, ...data.news.map(n => n.id)) + 1;
+    const actualites = await supabase.actualite.getAll();
+    res.json(actualites || []);
+  } catch (error) {
+    console.error('Erreur récupération actualites:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
+app.post('/api/news', upload.single('image'), async (req, res) => {
+  try {
     let imageUrl = null;
     if (req.file) {
       const base64 = req.file.buffer.toString('base64');
@@ -1220,77 +1293,73 @@ app.post('/api/news', upload.single('image'), (req, res) => {
       imageUrl = req.body.image;
     }
 
-    const news = {
-      id: newId,
+    const actualiteData = {
       title: req.body.title,
-      description: req.body.description,
+      slug: req.body.slug || req.body.title.toLowerCase().replace(/\s+/g, '-'),
+      excerpt: req.body.description || req.body.excerpt,
       content: req.body.content || '',
-      category: req.body.category || 'Actualités',
-      image: imageUrl,
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString()
+      image_url: imageUrl,
+      author: req.body.author,
+      published: req.body.published !== undefined ? req.body.published : true,
+      published_at: new Date().toISOString()
     };
 
-    data.news.push(news);
-    writeDataAndBackup(data, 'ADD_NEWS', `News added: ${news.title}`);
-    res.status(201).json(news);
+    const actualite = await supabase.actualite.create(actualiteData);
+    console.log('✅ Actualite créée:', actualite.title);
+    res.status(201).json(actualite);
   } catch (error) {
+    console.error('Erreur création actualite:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/news/:id', upload.single('image'), (req, res) => {
+app.put('/api/news/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const index = data.news.findIndex(n => n.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
-
-    let imageUrl = data.news[index].image;
+    
+    let imageUrl = req.body.image_url || req.body.image;
     if (req.file) {
       const base64 = req.file.buffer.toString('base64');
       imageUrl = `data:${req.file.mimetype};base64,${base64}`;
-    } else if (req.body.image && req.body.image.startsWith('data:')) {
-      imageUrl = req.body.image;
     }
 
-    data.news[index] = {
-      ...data.news[index],
-      title: req.body.title || data.news[index].title,
-      description: req.body.description !== undefined ? req.body.description : data.news[index].description,
-      content: req.body.content !== undefined ? req.body.content : data.news[index].content,
-      category: req.body.category !== undefined ? req.body.category : data.news[index].category,
-      image: imageUrl
+    const actualiteData = {
+      title: req.body.title,
+      slug: req.body.slug || req.body.title.toLowerCase().replace(/\s+/g, '-'),
+      excerpt: req.body.description || req.body.excerpt,
+      content: req.body.content || '',
+      image_url: imageUrl,
+      author: req.body.author,
+      published: req.body.published !== undefined ? req.body.published : true
     };
 
-    writeDataAndBackup(data, 'UPDATE_NEWS', `News updated: ${data.news[index].title}`);
-    res.json(data.news[index]);
+    const actualite = await supabase.actualite.update(id, actualiteData);
+    console.log('✅ Actualite mise à jour:', actualite.title);
+    res.json(actualite);
   } catch (error) {
+    console.error('Erreur mise à jour actualite:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/news/:id', (req, res) => {
+app.delete('/api/news/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const index = data.news.findIndex(n => n.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
-
-    const deleted = data.news.splice(index, 1);
-    writeDataAndBackup(data, 'DELETE_NEWS', `News deleted: ${deleted[0].title}`);
-    res.json(deleted[0]);
+    const result = await supabase.actualite.delete(id);
+    console.log('✅ Actualite supprimée:', id);
+    res.json(result);
   } catch (error) {
+    console.error('Erreur suppression actualite:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // ============= SOLUTIONS ROUTES =============
 
-app.get('/api/solutions', (req, res) => {
+app.get('/api/solutions', async (req, res) => {
   try {
-    const data = readData();
-    res.json(data.solutions || []);
+    const solutions = await supabase.solutions.getAll();
+    res.json(solutions || []);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1400,6 +1469,7 @@ app.get('/api/jobs', (req, res) => {
     const data = readData();
     res.json(data.jobs || []);
   } catch (error) {
+    console.error('Erreur récupération jobs:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1407,24 +1477,27 @@ app.get('/api/jobs', (req, res) => {
 app.post('/api/jobs', (req, res) => {
   try {
     const data = readData();
-    const newId = Math.max(0, ...data.jobs.map(j => j.id)) + 1;
+    const newId = data.jobs && data.jobs.length > 0 ? Math.max(...data.jobs.map(j => j.id || 0)) + 1 : 1;
 
     const job = {
       id: newId,
       title: req.body.title,
       description: req.body.description,
-      location: req.body.location,
-      type: req.body.type,
+      location: req.body.location || '',
+      type: req.body.type || '',
       department: req.body.department || '',
       requirements: req.body.requirements || '',
       salaryRange: req.body.salaryRange || '',
       createdAt: new Date().toISOString()
     };
 
+    if (!data.jobs) data.jobs = [];
     data.jobs.push(job);
     writeDataAndBackup(data, 'ADD_JOB', `Job posted: ${job.title}`);
+    console.log('✅ Job created:', job.title);
     res.status(201).json(job);
   } catch (error) {
+    console.error('Erreur création job:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1433,12 +1506,12 @@ app.put('/api/jobs/:id', (req, res) => {
   try {
     const { id } = req.params;
     const data = readData();
-    const index = data.jobs.findIndex(j => j.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
+    const index = data.jobs ? data.jobs.findIndex(j => j.id == id) : -1;
+    if (index === -1) return res.status(404).json({ error: 'Job non trouvé' });
 
     data.jobs[index] = {
       ...data.jobs[index],
-      title: req.body.title || data.jobs[index].title,
+      title: req.body.title !== undefined ? req.body.title : data.jobs[index].title,
       description: req.body.description !== undefined ? req.body.description : data.jobs[index].description,
       location: req.body.location !== undefined ? req.body.location : data.jobs[index].location,
       type: req.body.type !== undefined ? req.body.type : data.jobs[index].type,
@@ -1448,8 +1521,10 @@ app.put('/api/jobs/:id', (req, res) => {
     };
 
     writeDataAndBackup(data, 'UPDATE_JOB', `Job updated: ${data.jobs[index].title}`);
+    console.log('✅ Job updated:', data.jobs[index].title);
     res.json(data.jobs[index]);
   } catch (error) {
+    console.error('Erreur mise à jour job:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1458,233 +1533,444 @@ app.delete('/api/jobs/:id', (req, res) => {
   try {
     const { id } = req.params;
     const data = readData();
-    const index = data.jobs.findIndex(j => j.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
+    const index = data.jobs ? data.jobs.findIndex(j => j.id == id) : -1;
+    if (index === -1) return res.status(404).json({ error: 'Job non trouvé' });
 
     const deleted = data.jobs.splice(index, 1);
     writeDataAndBackup(data, 'DELETE_JOB', `Job deleted: ${deleted[0].title}`);
+    console.log('✅ Job deleted:', deleted[0].title);
     res.json(deleted[0]);
   } catch (error) {
+    console.error('Erreur suppression job:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ============= APPLICATIONS ROUTES =============
+// ============= APPLICATIONS (CANDIDATURE) ROUTES =============
 
-app.get('/api/applications', (req, res) => {
+app.get('/api/applications', async (req, res) => {
   try {
-    const data = readData();
-    res.json(data.applications || []);
+    const apps = await supabase.candidature.getAll();
+    res.json(apps || []);
   } catch (error) {
+    console.error('Erreur récupération candidatures:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/applications', (req, res) => {
+app.post('/api/applications', async (req, res) => {
   try {
-    const data = readData();
-    const newId = Math.max(0, ...data.applications.map(a => a.id)) + 1;
-
-    const application = {
-      id: newId,
-      jobId: req.body.jobId,
-      jobTitle: req.body.jobTitle,
-      fullName: req.body.fullName,
+    const candidatureData = {
+      job_id: req.body.jobId || req.body.job_id,
+      first_name: req.body.firstName || req.body.first_name || req.body.fullName?.split(' ')[0],
+      last_name: req.body.lastName || req.body.last_name || req.body.fullName?.split(' ')[1] || '',
       email: req.body.email,
       phone: req.body.phone,
-      linkedin: req.body.linkedin || '',
-      coverLetter: req.body.coverLetter || '',
-      resume: req.body.resume || '',
-      status: 'En cours',
-      appliedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      cv_url: req.body.cvUrl || req.body.cv_url || req.body.resume,
+      cover_letter: req.body.coverLetter || req.body.cover_letter
     };
 
-    data.applications.push(application);
-    writeDataAndBackup(data, 'ADD_APPLICATION', `Application submitted: ${application.fullName} for ${application.jobTitle}`);
+    const application = await supabase.candidature.create(candidatureData);
+    console.log('✅ Candidature créée:', application.first_name);
     res.status(201).json(application);
   } catch (error) {
+    console.error('Erreur création candidature:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/applications/:id', (req, res) => {
+app.put('/api/applications/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const index = data.applications.findIndex(a => a.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
-
-    data.applications[index] = {
-      ...data.applications[index],
-      status: req.body.status || data.applications[index].status,
-      updatedAt: new Date().toISOString()
+    const candidatureData = {
+      status: req.body.status
     };
 
-    writeDataAndBackup(data, 'UPDATE_APPLICATION', `Application updated: ${data.applications[index].fullName} - ${req.body.status}`);
-    res.json(data.applications[index]);
+    const application = await supabase.candidature.update(id, candidatureData);
+    console.log('✅ Candidature mise à jour:', application.id);
+    res.json(application);
   } catch (error) {
+    console.error('Erreur mise à jour candidature:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/applications/:id', (req, res) => {
+app.delete('/api/applications/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const index = data.applications.findIndex(a => a.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
-
-    const deleted = data.applications.splice(index, 1);
-    writeDataAndBackup(data, 'DELETE_APPLICATION', `Application deleted: ${deleted[0].fullName}`);
-    res.json(deleted[0]);
+    const result = await supabase.candidature.delete(id);
+    console.log('✅ Candidature supprimée:', id);
+    res.json(result);
   } catch (error) {
+    console.error('Erreur suppression candidature:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= COMPLETED PROJECTS (PROJETS REALISES) ROUTES =============
+
+app.get('/api/projets-realises', async (req, res) => {
+  try {
+    const projets = await supabase.projetsRealises.getAll();
+    res.json(projets || []);
+  } catch (error) {
+    console.error('Erreur récupération projets:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/projets-realises/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const projet = await supabase.projetsRealises.getById(id);
+    if (!projet) return res.status(404).json({ error: 'Projet non trouvé' });
+    res.json(projet);
+  } catch (error) {
+    console.error('Erreur récupération projet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/projets-realises', upload.single('image'), async (req, res) => {
+  try {
+    let imageUrl = null;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    } else if (req.body.image) {
+      imageUrl = req.body.image;
+    }
+
+    const projetData = {
+      title: req.body.title,
+      slug: req.body.slug || req.body.title.toLowerCase().replace(/\s+/g, '-'),
+      description: req.body.description,
+      image_url: imageUrl,
+      client: req.body.client,
+      category: req.body.category,
+      technologies: req.body.technologies ? (Array.isArray(req.body.technologies) ? req.body.technologies : req.body.technologies.split(',')) : [],
+      results: req.body.results,
+      published: req.body.published !== undefined ? req.body.published : true
+    };
+
+    const projet = await supabase.projetsRealises.create(projetData);
+    console.log('✅ Projet créé:', projet.title);
+    res.status(201).json(projet);
+  } catch (error) {
+    console.error('Erreur création projet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/projets-realises/:id', upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    let imageUrl = req.body.image_url || req.body.image;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    }
+
+    const projetData = {
+      title: req.body.title,
+      slug: req.body.slug || req.body.title.toLowerCase().replace(/\s+/g, '-'),
+      description: req.body.description,
+      image_url: imageUrl,
+      client: req.body.client,
+      category: req.body.category,
+      technologies: req.body.technologies ? (Array.isArray(req.body.technologies) ? req.body.technologies : req.body.technologies.split(',')) : [],
+      results: req.body.results,
+      published: req.body.published !== undefined ? req.body.published : true
+    };
+
+    const projet = await supabase.projetsRealises.update(id, projetData);
+    console.log('✅ Projet mis à jour:', projet.title);
+    res.json(projet);
+  } catch (error) {
+    console.error('Erreur mise à jour projet:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/projets-realises/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await supabase.projetsRealises.delete(id);
+    console.log('✅ Projet supprimé:', id);
+    res.json(result);
+  } catch (error) {
+    console.error('Erreur suppression projet:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // ============= CONTACTS ROUTES =============
 
-app.get('/api/contacts', (req, res) => {
+app.get('/api/contacts', async (req, res) => {
   try {
-    const data = readData();
-    res.json(data.contacts || []);
+    const contacts = await supabase.contacts.getAll();
+    
+    // Map Supabase schema to expected format
+    const mapped = contacts.map(contact => ({
+      ...contact,
+      fullName: contact.name,
+      replyMessage: contact.notes,
+      replyDate: contact.updated_at,
+      createdAt: contact.created_at
+    }));
+    
+    res.json(mapped || []);
   } catch (error) {
+    console.error('Erreur récupération contacts:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/contacts', (req, res) => {
+app.post('/api/contacts', async (req, res) => {
   try {
-    const data = readData();
-    const newId = Math.max(0, ...data.contacts.map(c => c.id)) + 1;
-
     const contact = {
-      id: newId,
-      fullName: req.body.fullName,
+      name: req.body.fullName || req.body.name,
       email: req.body.email,
       phone: req.body.phone,
-      subject: req.body.subject,
-      message: req.body.message,
-      status: 'pending',
-      createdAt: new Date().toISOString()
+      message: `${req.body.subject ? '[' + req.body.subject + '] ' : ''}${req.body.message || ''}`,
+      status: 'pending'
     };
 
-    data.contacts.push(contact);
-    writeDataAndBackup(data, 'ADD_CONTACT', `Contact added: ${contact.fullName}`);
-    res.status(201).json(contact);
+    const newContact = await supabase.contacts.create(contact);
+    
+    // Map response back to expected format
+    const response = {
+      ...newContact,
+      fullName: newContact.name,
+      createdAt: newContact.created_at
+    };
+    
+    res.status(201).json(response);
   } catch (error) {
+    console.error('Erreur création contact:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/contacts/:id', (req, res) => {
+app.put('/api/contacts/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const index = data.contacts.findIndex(c => c.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
-
-    data.contacts[index] = {
-      ...data.contacts[index],
-      status: req.body.status || data.contacts[index].status,
-      replyMessage: req.body.replyMessage || data.contacts[index].replyMessage,
-      replyDate: new Date().toISOString(),
-      replyMethod: req.body.replyMethod || data.contacts[index].replyMethod
+   const updateData = {
+      status: req.body.status
     };
 
-    writeDataAndBackup(data, 'UPDATE_CONTACT', `Contact updated: ${data.contacts[index].fullName}`);
-    res.json(data.contacts[index]);
+    // Map replyMessage to notes
+    if (req.body.replyMessage) {
+      updateData.notes = req.body.replyMessage;
+    }
+
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => 
+      updateData[key] === undefined && delete updateData[key]
+    );
+
+    const updated = await supabase.contacts.update(id, updateData);
+    if (!updated) {
+      return res.status(404).json({ error: 'Non trouvé' });
+    }
+    
+    // Map response back
+    const response = {
+      ...updated,
+      fullName: updated.name,
+      replyMessage: updated.notes,
+      replyDate: updated.updated_at,
+      createdAt: updated.created_at
+    };
+    
+    res.json(response);
   } catch (error) {
+    console.error('Erreur mise à jour contact:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/contacts/reply', (req, res) => {
+app.post('/api/contacts/reply', async (req, res) => {
   try {
     const { id, method, message } = req.body;
-    const data = readData();
-    const index = data.contacts.findIndex(c => c.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Contact non trouvé' });
-
-    // Mettre à jour le contact avec la réponse
-    data.contacts[index] = {
-      ...data.contacts[index],
+    
+    const updateData = {
       status: 'replied',
-      replyMethod: method,
-      replyMessage: message,
-      replyDate: new Date().toISOString()
+      notes: message
     };
 
-    writeDataAndBackup(data, 'REPLY_CONTACT', `Reply sent to: ${data.contacts[index].fullName}`);
-    res.json({ success: true, contact: data.contacts[index] });
+    const updated = await supabase.contacts.update(id, updateData);
+    if (!updated) {
+      return res.status(404).json({ error: 'Contact non trouvé' });
+    }
+
+    // Map response back
+    const response = {
+      ...updated,
+      fullName: updated.name,
+      replyMessage: updated.notes,
+      replyDate: updated.updated_at,
+      replyMethod: method,
+      createdAt: updated.created_at
+    };
+
+    res.json({ success: true, contact: response });
   } catch (error) {
+    console.error('Erreur réponse contact:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/contacts/:id', (req, res) => {
+app.delete('/api/contacts/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = readData();
-    const index = data.contacts.findIndex(c => c.id == id);
-    if (index === -1) return res.status(404).json({ error: 'Non trouvé' });
+    
+    // Get contact before deleting for response
+    const contact = await supabase.contacts.getById(id);
+    if (!contact) {
+      return res.status(404).json({ error: 'Non trouvé' });
+    }
 
-    const deleted = data.contacts.splice(index, 1);
-    writeDataAndBackup(data, 'DELETE_CONTACT', `Contact deleted: ${deleted[0].fullName}`);
-    res.json(deleted[0]);
+    await supabase.contacts.delete(id);
+    res.json(contact);
   } catch (error) {
+    console.error('Erreur suppression contact:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // ============= SETTINGS ROUTES =============
 
-app.get('/api/settings', (req, res) => {
+app.get('/api/settings', async (req, res) => {
   try {
-    const data = readData();
-    res.json(data.settings || {});
+    const settings = await supabase.settings.getAll();
+    
+    // Convert array of {key, value} to single object
+    // and map snake_case keys to camelCase for frontend
+    const settingsObject = {};
+    const keyMap = {
+      site_title: 'siteTitle',
+      company_name: 'company_name',
+      slogan: 'slogan',
+      tagline: 'tagline',
+      email: 'email',
+      phone: 'phone',
+      address: 'address',
+      social_media: 'socialMedia',
+      business_hours: 'businessHours',
+      primary_color: 'primaryColor',
+      secondary_color: 'secondary_color',
+      logo_url: 'logo_url',
+      facebook_url: 'facebook_url',
+      linkedin_url: 'linkedin_url',
+      twitter_url: 'twitter_url',
+      description: 'description',
+      maintenance_mode: 'maintenanceMode',
+      timezone: 'timezone'
+    };
+
+    settings.forEach(setting => {
+      const frontendKey = keyMap[setting.key] || setting.key;
+      
+      // Try to parse JSON values
+      try {
+        settingsObject[frontendKey] = JSON.parse(setting.value);
+      } catch (e) {
+        // If not JSON, use as-is
+        settingsObject[frontendKey] = setting.value;
+      }
+    });
+    
+    res.json(settingsObject);
   } catch (error) {
+    console.error('Erreur récupération settings:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/settings', (req, res) => {
+app.put('/api/settings', async (req, res) => {
   try {
-    const data = readData();
-
-    const siteTitle = req.body.siteTitle || data.settings.siteTitle;
-    data.settings = {
-      ...data.settings,
-      siteTitle: siteTitle,
-      company_name: siteTitle, // Alias pour frontend compatibility
-      slogan: req.body.slogan !== undefined ? req.body.slogan : data.settings.slogan,
-      tagline: req.body.tagline !== undefined ? req.body.tagline : data.settings.tagline,
-      email: req.body.email !== undefined ? req.body.email : data.settings.email,
-      phone: req.body.phone !== undefined ? req.body.phone : data.settings.phone,
-      address: req.body.address !== undefined ? req.body.address : data.settings.address,
-      socialMedia: req.body.socialMedia || data.settings.socialMedia,
-      businessHours: req.body.businessHours || data.settings.businessHours,
-      primaryColor: req.body.primaryColor !== undefined ? req.body.primaryColor : data.settings.primaryColor,
-      description: req.body.description !== undefined ? req.body.description : data.settings.description,
-      updatedAt: new Date().toISOString()
+    // Map for converting frontend keys to database keys
+    const settingsMap = {
+      siteTitle: 'site_title',
+      company_name: 'company_name',
+      slogan: 'slogan',
+      tagline: 'tagline',
+      email: 'email',
+      phone: 'phone',
+      address: 'address',
+      socialMedia: 'social_media',
+      businessHours: 'business_hours',
+      primaryColor: 'primary_color',
+      description: 'description'
     };
 
-    writeDataAndBackup(data, 'UPDATE_SETTINGS', `Settings updated: ${siteTitle}`);
-    res.json(data.settings);
+    // Process each setting and save to database
+    for (const [frontendKey, dbKey] of Object.entries(settingsMap)) {
+      if (req.body[frontendKey] !== undefined) {
+        const value = typeof req.body[frontendKey] === 'object' 
+          ? JSON.stringify(req.body[frontendKey])
+          : req.body[frontendKey];
+        
+        await supabase.settings.set(dbKey, value);
+      }
+    }
+
+    // After saving, fetch ALL settings to return them
+    // This ensures consistency between what was sent and what's in the database
+    const allSettings = await supabase.settings.getAll();
+    
+    const settingsObject = {};
+    const keyMap = {
+      site_title: 'siteTitle',
+      company_name: 'company_name',
+      slogan: 'slogan',
+      tagline: 'tagline',
+      email: 'email',
+      phone: 'phone',
+      address: 'address',
+      social_media: 'socialMedia',
+      business_hours: 'businessHours',
+      primary_color: 'primaryColor',
+      secondary_color: 'secondary_color',
+      logo_url: 'logo_url',
+      facebook_url: 'facebook_url',
+      linkedin_url: 'linkedin_url',
+      twitter_url: 'twitter_url',
+      description: 'description',
+      maintenance_mode: 'maintenanceMode',
+      timezone: 'timezone'
+    };
+
+    allSettings.forEach(setting => {
+      const frontendKey = keyMap[setting.key] || setting.key;
+      
+      // Try to parse JSON values
+      try {
+        settingsObject[frontendKey] = JSON.parse(setting.value);
+      } catch (e) {
+        // If not JSON, use as-is
+        settingsObject[frontendKey] = setting.value;
+      }
+    });
+
+    res.json(settingsObject);
+    console.log('✅ Settings updated:', Object.keys(settingsObject).join(', '));
   } catch (error) {
+    console.error('Erreur mise à jour settings:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // ============= SERVICES ROUTES =============
 
-app.get('/api/services', (req, res) => {
+app.get('/api/services', async (req, res) => {
   try {
-    const data = readData();
-    res.json(data.services || []);
+    const services = await supabase.services.getAll();
+    res.json(services || []);
   } catch (error) {
+    console.error('Erreur récupération services:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2067,6 +2353,162 @@ app.post('/api/admin/migrate-data', verifyToken, requireAdmin, async (req, res) 
   }
 });
 
+// ============= FORMATIONS ENDPOINTS =============
+
+// GET all formations
+app.get('/api/formations', async (req, res) => {
+  try {
+    const formations = await supabase.formations.getAll();
+    res.json(formations);
+  } catch (error) {
+    console.error('Error fetching formations:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET formation by ID
+app.get('/api/formations/:id', async (req, res) => {
+  try {
+    const formation = await supabase.formations.getById(req.params.id);
+    res.json(formation);
+  } catch (error) {
+    console.error('Error fetching formation:', error);
+    res.status(404).json({ error: 'Formation not found' });
+  }
+});
+
+// CREATE formation (admin only)
+app.post('/api/formations', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const formation = await supabase.formations.create(req.body);
+    res.status(201).json(formation);
+  } catch (error) {
+    console.error('Error creating formation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATE formation (admin only)
+app.put('/api/formations/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const formation = await supabase.formations.update(req.params.id, req.body);
+    res.json(formation);
+  } catch (error) {
+    console.error('Error updating formation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE formation (admin only)
+app.delete('/api/formations/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    await supabase.formations.delete(req.params.id);
+    res.json({ success: true, message: 'Formation deleted' });
+  } catch (error) {
+    console.error('Error deleting formation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============= INSCRIPTIONS FORMATIONS ENDPOINTS =============
+
+// GET all inscriptions (admin only)
+app.get('/api/inscriptions-formations', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const inscriptions = await supabase.inscriptionsFormations.getAll();
+    res.json(inscriptions);
+  } catch (error) {
+    console.error('Error fetching inscriptions:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET inscription by numero (public - pour vérification)
+app.get('/api/inscriptions-formations/numero/:numero', async (req, res) => {
+  try {
+    const inscription = await supabase.inscriptionsFormations.getByNumero(req.params.numero);
+    res.json(inscription);
+  } catch (error) {
+    console.error('Error fetching inscription:', error);
+    res.status(404).json({ error: 'Inscription not found' });
+  }
+});
+
+// CREATE inscription (public)
+app.post('/api/inscriptions-formations', async (req, res) => {
+  try {
+    const inscription = await supabase.inscriptionsFormations.create(req.body);
+
+    // Marquer fiche comme téléchargeable
+    await supabase.inscriptionsFormations.marquerTelecharge(inscription.id);
+
+    // Assurer la présence de la categorie dans la formation liée
+    let formationDetails = inscription.formations;
+    if (!formationDetails?.categorie && !formationDetails?.category && inscription.formation_id) {
+      try {
+        formationDetails = await supabase.formations.getById(inscription.formation_id);
+      } catch (fetchError) {
+        console.warn('Formation fetch fallback failed:', fetchError?.message);
+      }
+    }
+
+    res.status(201).json({
+      ...inscription,
+      formations: formationDetails || inscription.formations
+    });
+  } catch (error) {
+    console.error('Error creating inscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// CONFIRM payment (public - avec numéro unique)
+app.post('/api/inscriptions-formations/confirmer', async (req, res) => {
+  try {
+    const { numero_inscription, montant } = req.body;
+    
+    if (!numero_inscription) {
+      return res.status(400).json({ error: 'Numéro d\'inscription requis' });
+    }
+    
+    const inscription = await supabase.inscriptionsFormations.confirmerPaiement(
+      numero_inscription,
+      montant
+    );
+    
+    res.json({
+      success: true,
+      message: 'Paiement confirmé avec succès!',
+      inscription
+    });
+  } catch (error) {
+    console.error('Error confirming payment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATE inscription (admin only)
+app.put('/api/inscriptions-formations/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const inscription = await supabase.inscriptionsFormations.update(req.params.id, req.body);
+    res.json(inscription);
+  } catch (error) {
+    console.error('Error updating inscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE inscription (admin only)
+app.delete('/api/inscriptions-formations/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    await supabase.inscriptionsFormations.delete(req.params.id);
+    res.json({ success: true, message: 'Inscription deleted' });
+  } catch (error) {
+    console.error('Error deleting inscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============= 404 HANDLER =============
 
 app.use((req, res) => {
@@ -2078,8 +2520,8 @@ app.use((req, res) => {
 app.listen(PORT, async () => {
   console.log(`✅ Server running on port ${PORT}`);
   
-  // Initialize PostgreSQL connection
-  try {
+  // Initialize PostgreSQL connection (DÉSACTIVÉ - On utilise Supabase)
+  /* try {
     await db.initializeDatabase();
     console.log(`✅ Connected to PostgreSQL`);
     console.log(`📊 Database tables initialized successfully`);
@@ -2087,10 +2529,13 @@ app.listen(PORT, async () => {
   } catch (error) {
     console.error('❌ PostgreSQL initialization failed:', error.message);
     console.log('📊 Falling back to JSON (data.json)');
-  }
+  } */
   
-  // 🔄 Démarrer la sauvegarde périodique GitHub
-  gitBackupService.startPeriodicBackup();
+  console.log(`🟢 Serveur prêt avec authentification Supabase`);
+  console.log(`🔗 API: http://localhost:${PORT}/api`);
+  
+  // 🔄 Démarrer la sauvegarde périodique GitHub (DÉSACTIVÉ - Supabase uniquement)
+  // gitBackupService.startPeriodicBackup();
 });
 
 export default app;
