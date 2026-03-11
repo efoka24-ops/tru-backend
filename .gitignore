@@ -11,3 +11,8 @@ uploads/*
 .env*.local
 # Exclure data.json pour éviter de perdre les données en production
 data.json
+
+
+# Added by cargo
+
+/target
