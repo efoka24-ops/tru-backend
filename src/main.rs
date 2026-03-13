@@ -15,6 +15,9 @@ mod contacts;
 mod projects;
 mod members;
 mod admin_members;
+mod settings;
+mod formations;
+mod inscriptions;
 mod state;
 mod validation;
 mod error;
@@ -126,6 +129,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .nest("/api/applications", routes::applications::router())
     .nest("/api/contacts", routes::contacts::router())
     .nest("/api/projects", routes::projects::router())
+    .nest("/api/settings", routes::settings::router())
+    .nest("/api/formations", routes::formations::router())
+    .nest("/api/inscriptions-formations", routes::inscriptions::router())
+    .merge(routes::upload::router())
+    .merge(routes::sync::router())
+    .merge(routes::logs::router())
+    .merge(routes::config::router())
     .with_state(state)
     .layer(RequestBodyLimitLayer::new(5 * 1024 * 1024))
     .layer(from_fn(crate::middleware::timeout::timeout_middleware))

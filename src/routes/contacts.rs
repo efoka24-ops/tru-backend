@@ -1,4 +1,4 @@
-use axum::{
+﻿use axum::{
   extract::{Path, State},
   response::IntoResponse,
   routing::get,
@@ -12,6 +12,13 @@ use crate::{
   models::contacts::{CreateContact, UpdateContact},
   state::AppState,
 };
+
+#[derive(serde::Deserialize)]
+struct ReplyBody {
+  id: uuid::Uuid,
+  #[allow(dead_code)]
+  reponse: Option<String>,
+}
 
 fn looks_like_email(s: &str) -> bool {
   let s = s.trim();
@@ -59,7 +66,6 @@ fn validate_create(input: &CreateContact) -> Result<(), axum::response::Response
   Ok(())
 }
 
-// Public: submit contact message
 async fn create(State(state): State<AppState>, Json(input): Json<CreateContact>) -> impl IntoResponse {
   if let Err(resp) = validate_create(&input) {
     return resp;
@@ -73,7 +79,6 @@ async fn create(State(state): State<AppState>, Json(input): Json<CreateContact>)
   }
 }
 
-// Admin: list all contacts
 async fn list_all(user: AuthUser, State(state): State<AppState>) -> impl IntoResponse {
   if let Err(err) = require_admin(&user) {
     return err.into_response();
@@ -87,7 +92,12 @@ async fn list_all(user: AuthUser, State(state): State<AppState>) -> impl IntoRes
   }
 }
 
-async fn update(user: AuthUser, State(state): State<AppState>, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateContact>) -> impl IntoResponse {
+async fn update(
+  user: AuthUser,
+  State(state): State<AppState>,
+  Path(id): Path<uuid::Uuid>,
+  Json(input): Json<UpdateContact>,
+) -> impl IntoResponse {
   if let Err(err) = require_admin(&user) {
     return err.into_response();
   }
@@ -101,7 +111,11 @@ async fn update(user: AuthUser, State(state): State<AppState>, Path(id): Path<uu
   }
 }
 
-async fn remove(user: AuthUser, State(state): State<AppState>, Path(id): Path<uuid::Uuid>) -> impl IntoResponse {
+async fn remove(
+  user: AuthUser,
+  State(state): State<AppState>,
+  Path(id): Path<uuid::Uuid>,
+) -> impl IntoResponse {
   if let Err(err) = require_admin(&user) {
     return err.into_response();
   }
@@ -115,8 +129,28 @@ async fn remove(user: AuthUser, State(state): State<AppState>, Path(id): Path<uu
   }
 }
 
+async fn reply(
+  user: AuthUser,
+  State(state): State<AppState>,
+  Json(body): Json<ReplyBody>,
+) -> impl IntoResponse {
+  if let Err(err) = require_admin(&user) {
+    return err.into_response();
+  }
+  let input = UpdateContact { read: Some(true) };
+  match contacts::repo::update(&state.db, body.id, input).await {
+    Ok(Some(item)) => Json(item).into_response(),
+    Ok(None) => AppError::not_found().into_response(),
+    Err(err) => {
+      tracing::warn!(error = %err, "contacts reply failed");
+      AppError::internal().into_response()
+    }
+  }
+}
+
 pub fn router() -> Router<AppState> {
   Router::new()
     .route("/", get(list_all).post(create))
+    .route("/reply", axum::routing::post(reply))
     .route("/{id}", axum::routing::put(update).delete(remove))
 }
