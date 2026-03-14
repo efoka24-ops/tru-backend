@@ -14,8 +14,6 @@ pub struct User {
   pub password_hash: String,
   pub member_id: Option<Uuid>,
   pub status: String,
-  #[serde(skip_serializing)]
-  pub login_code_hash: Option<String>,
   pub login_code_expiry: Option<DateTime<Utc>>,
   pub last_login: Option<DateTime<Utc>>,
 }
@@ -31,7 +29,7 @@ pub async fn create_user(
     r#"
     INSERT INTO users (email, name, role, password_hash)
     VALUES ($1, $2, $3, $4)
-    RETURNING id, email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry, last_login
+    RETURNING id, email, name, role, password_hash, member_id, status, login_code_expiry, last_login
     "#,
   )
   .bind(email)
@@ -45,7 +43,7 @@ pub async fn create_user(
 pub async fn find_user_by_email(db: &PgPool, email: &str) -> Result<Option<User>, sqlx::Error> {
   sqlx::query_as::<_, User>(
     r#"
-    SELECT id, email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry, last_login
+    SELECT id, email, name, role, password_hash, member_id, status, login_code_expiry, last_login
     FROM users
     WHERE email = $1
     "#,
@@ -58,7 +56,7 @@ pub async fn find_user_by_email(db: &PgPool, email: &str) -> Result<Option<User>
 pub async fn find_user_by_id(db: &PgPool, id: Uuid) -> Result<Option<User>, sqlx::Error> {
   sqlx::query_as::<_, User>(
     r#"
-    SELECT id, email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry, last_login
+    SELECT id, email, name, role, password_hash, member_id, status, login_code_expiry, last_login
     FROM users
     WHERE id = $1
     "#,
@@ -85,7 +83,7 @@ pub async fn create_member_account(
     r#"
     INSERT INTO users (email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-    RETURNING id, email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry, last_login
+    RETURNING id, email, name, role, password_hash, member_id, status, login_code_expiry, last_login
     "#,
   )
   .bind(email)
@@ -106,7 +104,7 @@ pub async fn find_user_by_login_code_hash(
 ) -> Result<Option<User>, sqlx::Error> {
   sqlx::query_as::<_, User>(
     r#"
-    SELECT id, email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry, last_login
+    SELECT id, email, name, role, password_hash, member_id, status, login_code_expiry, last_login
     FROM users
     WHERE login_code_hash = $1
     "#,
@@ -131,7 +129,7 @@ pub async fn activate_user_with_password(
       login_code_expiry = NULL,
       last_login = NOW()
     WHERE id = $1
-    RETURNING id, email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry, last_login
+    RETURNING id, email, name, role, password_hash, member_id, status, login_code_expiry, last_login
     "#,
   )
   .bind(user_id)

@@ -6,7 +6,6 @@ use axum::{
 };
 
 use crate::{
-  error::AppError,
   middleware::auth::{require_admin, AuthUser},
   models::team::{CreateTeamMember, UpdateTeamMember},
   state::AppState,

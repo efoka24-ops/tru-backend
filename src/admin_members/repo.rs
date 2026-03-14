@@ -163,7 +163,7 @@ pub async fn regenerate_login_code(
     UPDATE users
     SET login_code_hash = $2, login_code_expiry = $3, status = 'pending'
     WHERE member_id = $1
-    RETURNING id, email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry, last_login
+    RETURNING id, email, name, role, password_hash, member_id, status, login_code_expiry, last_login
     "#,
   )
   .bind(member_id)
@@ -188,7 +188,7 @@ pub async fn update_account(
       role = COALESCE($3, role),
       status = COALESCE($4, status)
     WHERE member_id = $1
-    RETURNING id, email, name, role, password_hash, member_id, status, login_code_hash, login_code_expiry, last_login
+    RETURNING id, email, name, role, password_hash, member_id, status, login_code_expiry, last_login
     "#,
   )
   .bind(member_id)

@@ -24,6 +24,10 @@ async fn handle_upload(mut multipart: Multipart) -> impl IntoResponse {
       .unwrap_or("application/octet-stream")
       .to_string();
 
+    if content_type.is_empty() || content_type.len() > 100 {
+      return AppError::bad_request().into_response();
+    }
+
     if !ALLOWED_MIME.iter().any(|m| content_type.starts_with(m)) {
       return (
         axum::http::StatusCode::UNSUPPORTED_MEDIA_TYPE,

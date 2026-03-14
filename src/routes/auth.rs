@@ -77,7 +77,7 @@ async fn login_code(State(state): State<AppState>, Json(req): Json<LoginCodeRequ
     }
   };
 
-  let token = match jwt::sign_jwt(updated.id, &updated.email, &updated.role, updated.member_id, &state.jwt_secret) {
+  let token = match jwt::sign_jwt(updated.id, &updated.role, updated.member_id, &state.jwt_secret) {
     Ok(t) => t,
     Err(err) => {
       tracing::warn!(error = %err, "jwt signing failed");
@@ -142,7 +142,7 @@ async fn register(State(state): State<AppState>, Json(req): Json<RegisterRequest
     }
   };
 
-  let token = match jwt::sign_jwt(user.id, &user.email, &user.role, user.member_id, &state.jwt_secret) {
+  let token = match jwt::sign_jwt(user.id, &user.role, user.member_id, &state.jwt_secret) {
     Ok(t) => t,
     Err(err) => {
       tracing::warn!(error = %err, "jwt signing failed");
@@ -185,7 +185,7 @@ async fn login(State(state): State<AppState>, Json(req): Json<LoginRequest>) -> 
 
   let _ = repo::update_last_login(&state.db, user.id).await;
 
-  let token = match jwt::sign_jwt(user.id, &user.email, &user.role, user.member_id, &state.jwt_secret) {
+  let token = match jwt::sign_jwt(user.id, &user.role, user.member_id, &state.jwt_secret) {
     Ok(t) => t,
     Err(err) => {
       tracing::warn!(error = %err, "jwt signing failed");

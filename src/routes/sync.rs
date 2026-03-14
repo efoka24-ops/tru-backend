@@ -7,7 +7,6 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-  error::AppError,
   news, projects, services, solutions, team, testimonials, settings,
   state::AppState,
 };
@@ -45,11 +44,25 @@ struct DataPayload {
   settings: serde_json::Value,
 }
 
+const MAX_SYNC_JSON_BYTES: usize = 200_000;
+
+fn validate_sync_value(v: &Option<serde_json::Value>) -> Result<(), axum::response::Response> {
+  if let Some(val) = v {
+    if !crate::validation::json_max_bytes(val, MAX_SYNC_JSON_BYTES) {
+      return Err(crate::error::AppError::payload_too_large().into_response());
+    }
+    if !(val.is_object() || val.is_array()) {
+      return Err(crate::error::AppError::bad_request().into_response());
+    }
+  }
+  Ok(())
+}
+
 async fn get_data(State(state): State<AppState>) -> impl IntoResponse {
-  let team_items = team::repo::list(&state.db).await.unwrap_or_default();
+  let team_items = team::repo::list_visible(&state.db).await.unwrap_or_default();
   let services_items = services::repo::list(&state.db).await.unwrap_or_default();
   let solutions_items = solutions::repo::list(&state.db).await.unwrap_or_default();
-  let testimonials_items = testimonials::repo::list(&state.db).await.unwrap_or_default();
+  let testimonials_items = testimonials::repo::list_published(&state.db).await.unwrap_or_default();
   let news_items = news::repo::list_published(&state.db).await.unwrap_or_default();
   let projects_items = projects::repo::list(&state.db).await.unwrap_or_default();
   let settings_value = settings::repo::get(&state.db)
@@ -72,6 +85,37 @@ async fn get_data(State(state): State<AppState>) -> impl IntoResponse {
 }
 
 async fn sync_all(Json(payload): Json<SyncAllPayload>) -> impl IntoResponse {
+  if let Err(resp) = validate_sync_value(&payload.team) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.services) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.solutions) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.testimonials) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.contacts) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.news) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.jobs) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.applications) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.projects) {
+    return resp;
+  }
+  if let Err(resp) = validate_sync_value(&payload.settings) {
+    return resp;
+  }
+
   let saved_keys = [
     payload.team.is_some(),
     payload.services.is_some(),
@@ -97,6 +141,15 @@ async fn sync_all(Json(payload): Json<SyncAllPayload>) -> impl IntoResponse {
 }
 
 async fn sync_batch(Json(payload): Json<SyncBatchPayload>) -> impl IntoResponse {
+  if let Some(v) = &payload.resolutions {
+    if !crate::validation::json_max_bytes(v, MAX_SYNC_JSON_BYTES) {
+      return crate::error::AppError::payload_too_large().into_response();
+    }
+    if !v.is_array() {
+      return crate::error::AppError::bad_request().into_response();
+    }
+  }
+
   let total = payload
     .resolutions
     .as_ref()

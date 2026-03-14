@@ -18,29 +18,6 @@ pub async fn list_all(db: &PgPool) -> Result<Vec<InscriptionFormation>, sqlx::Er
   .await
 }
 
-pub async fn list_by_formation(
-  db: &PgPool,
-  formation_id: i64,
-) -> Result<Vec<InscriptionFormation>, sqlx::Error> {
-  sqlx::query_as::<_, InscriptionFormation>(&format!(
-    "{} WHERE formation_id = $1 ORDER BY created_at DESC",
-    SELECT
-  ))
-  .bind(formation_id)
-  .fetch_all(db)
-  .await
-}
-
-pub async fn get_by_id(
-  db: &PgPool,
-  id: i64,
-) -> Result<Option<InscriptionFormation>, sqlx::Error> {
-  sqlx::query_as::<_, InscriptionFormation>(&format!("{} WHERE id = $1", SELECT))
-    .bind(id)
-    .fetch_optional(db)
-    .await
-}
-
 pub async fn get_by_numero(
   db: &PgPool,
   numero: &str,
