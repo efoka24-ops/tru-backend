@@ -9,13 +9,19 @@ use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 struct IncreaseImageLimitPayload {
-  newLimit: Option<u64>,
+  #[serde(rename = "newLimit")]
+  new_limit: Option<u64>,
 }
 
 async fn increase_image_limit(Json(payload): Json<IncreaseImageLimitPayload>) -> impl IntoResponse {
+  if let Some(v) = payload.new_limit {
+    if v == 0 || v > 50_000 {
+      return crate::error::AppError::bad_request().into_response();
+    }
+  }
   Json(serde_json::json!({
     "success": true,
-    "newLimit": payload.newLimit.unwrap_or(500),
+    "newLimit": payload.new_limit.unwrap_or(500),
     "message": "image limit acknowledged"
   }))
   .into_response()

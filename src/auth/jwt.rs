@@ -6,7 +6,6 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
   pub sub: Uuid,
-  pub email: String,
   pub role: String,
   pub member_id: Option<Uuid>,
   pub exp: i64,
@@ -15,7 +14,6 @@ pub struct Claims {
 
 pub fn sign_jwt(
   user_id: Uuid,
-  email: &str,
   role: &str,
   member_id: Option<Uuid>,
   secret: &str,
@@ -24,7 +22,6 @@ pub fn sign_jwt(
   let exp = now + Duration::days(7);
   let claims = Claims {
     sub: user_id,
-    email: email.to_string(),
     role: role.to_string(),
     member_id,
     iat: now.timestamp(),

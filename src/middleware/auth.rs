@@ -9,7 +9,6 @@ use crate::{auth::jwt, error::AppError, state::AppState};
 #[derive(Debug, Clone)]
 pub struct AuthUser {
   pub user_id: uuid::Uuid,
-  pub email: String,
   pub role: String,
   pub member_id: Option<uuid::Uuid>,
 }
@@ -38,7 +37,6 @@ impl FromRequestParts<AppState> for AuthUser {
 
       Ok(AuthUser {
         user_id: claims.sub,
-        email: claims.email,
         role: claims.role,
         member_id: claims.member_id,
       })

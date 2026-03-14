@@ -16,8 +16,6 @@ use crate::{
 #[derive(serde::Deserialize)]
 struct ReplyBody {
   id: uuid::Uuid,
-  #[allow(dead_code)]
-  reponse: Option<String>,
 }
 
 fn looks_like_email(s: &str) -> bool {

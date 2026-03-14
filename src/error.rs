@@ -31,13 +31,6 @@ impl AppError {
     }
   }
 
-  pub fn unauthorized() -> Self {
-    Self {
-      status: StatusCode::UNAUTHORIZED,
-      code: "unauthorized",
-    }
-  }
-
   pub fn forbidden() -> Self {
     Self {
       status: StatusCode::FORBIDDEN,
