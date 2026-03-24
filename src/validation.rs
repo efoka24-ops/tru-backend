@@ -29,6 +29,18 @@ pub fn looks_like_http_url(s: &str) -> bool {
   (s.starts_with("http://") || s.starts_with("https://")) && s.len() <= 2048
 }
 
+pub fn looks_like_data_url(s: &str) -> bool {
+  let s = s.trim();
+  s.starts_with("data:") && s.len() <= 2_000_000
+}
+
+pub fn opt_http_or_data_url_ok(s: &Option<String>) -> bool {
+  match s {
+    Some(v) => looks_like_http_url(v) || looks_like_data_url(v),
+    None => true,
+  }
+}
+
 pub fn opt_url_ok(s: &Option<String>) -> bool {
   match s {
     Some(v) => looks_like_http_url(v),
