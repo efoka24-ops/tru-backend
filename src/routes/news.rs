@@ -27,7 +27,7 @@ fn validate_create(input: &CreateNewsItem) -> Result<(), AppError> {
   if !crate::validation::opt_max_len(&input.excerpt, 500) {
     return Err(AppError::bad_request());
   }
-  if !crate::validation::opt_max_len(&input.image_url, 2048) {
+  if !crate::validation::opt_max_len(&input.image_url, 2_000_000) {
     return Err(AppError::bad_request());
   }
   if !crate::validation::opt_http_or_data_url_ok(&input.image_url) {
@@ -48,6 +48,9 @@ fn validate_update(input: &UpdateNewsItem) -> Result<(), AppError> {
     }
   }
   if !crate::validation::opt_max_len(&input.excerpt, 500) {
+    return Err(AppError::bad_request());
+  }
+  if !crate::validation::opt_max_len(&input.image_url, 2_000_000) {
     return Err(AppError::bad_request());
   }
   if !crate::validation::opt_http_or_data_url_ok(&input.image_url) {
