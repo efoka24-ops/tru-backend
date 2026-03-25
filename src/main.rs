@@ -142,8 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .layer(TraceLayer::new_for_http())
     .layer(security_headers.0)
     .layer(security_headers.1)
-    .layer(security_headers.2)
-    .layer(cors);
+    .layer(security_headers.2);
 
   let app = if cfg.disable_rate_limit {
     app
@@ -154,7 +153,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       .finish()
       .unwrap();
     app.layer(GovernorLayer { config: std::sync::Arc::new(governor_conf) })
-  };
+  }
+  // Important: CORS must be outermost, otherwise short-circuit layers (e.g. rate limiting)
+  // can return responses without the Access-Control-Allow-Origin header.
+  .layer(cors);
 
   let addr = SocketAddr::from(([0, 0, 0, 0], cfg.port));
   info!("listening on {}", addr);
